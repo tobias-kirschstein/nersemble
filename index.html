@@ -1,1 +1,260 @@
-Coming soon as well!
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="description"
+          content="NeRSemble: Multi-view Radiance Field Reconstruction of Human Heads">
+    <meta name="keywords" content="NeRSemble, Hash Ensemble, NeRF, Instant NGP, Multi-view, Faces, Heads, Dynamic">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NeRSemble: Multi-view Radiance Field Reconstruction of Human Heads</title>
+
+    <!-- STYLESHEETS -->
+    <!--link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+          rel="stylesheet"-->
+
+    <link rel="stylesheet" href="./static/css/bulma.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="./static/css/index.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script defer src="./static/js/fontawesome.all.min.js"></script>
+    <script src="./static/js/bulma-carousel.js"></script>
+    <script src="./static/js/bulma-slider.min.js"></script>
+    <script src="./static/js/index.js"></script>
+</head>
+
+<body>
+
+<!-- Title, Authors & Link Capsules -->
+<section class="hero">
+    <div class="hero-body">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column has-text-centered">
+                    <h1 class="title is-1 publication-title">NeRSemble: Multi-view Radiance Field Reconstruction of
+                        Human Heads</h1>
+                    <div class="is-size-5 publication-authors">
+                        <span class="author-block">
+                          <a href="https://tobias-kirschstein.github.io/">Tobias Kirschstein</a><sup>1</sup>,</span>
+                        <span class="author-block">
+                          <a href="https://shenhanqian.com/">Shenhan Qian</a><sup>1</sup>,</span>
+                        <span class="author-block">
+                          <a href="https://simongiebenhain.github.io/">Simon Giebenhain</a><sup>1</sup>,
+                        </span>
+                        <span class="author-block">
+                          <a href="https://www.linkedin.com/in/tim-walter-7203aa20b/?originalSubdomain=de">Tim Walter</a><sup>1</sup>,
+                        </span>
+                        <span class="author-block">
+                          <a href="https://niessnerlab.org/">Matthias Nie&szlig;ner</a><sup>1</sup>
+                        </span>
+                    </div>
+
+                    <div class="is-size-5 publication-authors">
+                        <span class="author-block"><sup>1</sup>Technical University of Munich</span>
+                    </div>
+
+                    <div class="column has-text-centered">
+                        <div class="publication-links">
+                            <!-- PDF Link. -->
+                            <span class="link-block">
+                                <!-- TODO: Enter PDF link -->
+                                <a href=""
+                                   class="external-link button is-normal is-rounded is-dark">
+                                  <span class="icon">
+                                      <i class="fas fa-file-pdf"></i>
+                                  </span>
+                                  <span>Paper</span>
+                                </a>
+                            </span>
+
+                            <span class="link-block">
+                                <!-- TODO: Enter arXiv link -->
+                                <a href=""
+                                   class="external-link button is-normal is-rounded is-dark">
+                                  <span class="icon">
+                                      <i class="ai ai-arxiv"></i>
+                                  </span>
+                                  <span>arXiv</span>
+                                </a>
+                            </span>
+
+                            <!-- Video Link. -->
+                            <span class="link-block">
+                                <a href="https://youtu.be/a-OAWqBzldU"
+                                   class="external-link button is-normal is-rounded is-dark">
+                                  <span class="icon">
+                                      <i class="fab fa-youtube"></i>
+                                  </span>
+                                  <span>Video</span>
+                                </a>
+                            </span>
+
+                            <!-- Code Link. -->
+                            <span class="link-block">
+                                <a href=""
+                                   class="external-link button is-normal is-rounded is-dark">
+                                  <span class="icon">
+                                      <i class="fab fa-github"></i>
+                                  </span>
+                                  <span>Code (coming soon)</span>
+                                  </a>
+                            </span>
+
+                            <!-- Dataset Link. -->
+                            <span class="link-block">
+                                <a href=""
+                                   class="external-link button is-normal is-rounded is-dark">
+                                  <span class="icon">
+                                      <i class="far fa-database"></i>
+                                  </span>
+                                  <span>Dataset (coming soon)</span>
+                                  </a>
+                            </span>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Task video -->
+<section class="hero teaser">
+    <div class="container is-max-desktop">
+        <div class="hero-body">
+            <video id="teaser" autoplay muted loop playsinline height="100%">
+                <source src="./static/videos/task.mp4"
+                        type="video/mp4">
+            </video>
+            <h2 class="subtitle has-text-centered">
+                <span class="dnerf">NeRSemble</span> takes multi-view video recordings of a person and allows rendering from arbitrary viewpoints.
+            </h2>
+        </div>
+    </div>
+</section>
+
+<!-- NVS result videos-->
+<section class="hero is-light is-small">
+    <div class="hero-body">
+        <div id="results-container" class="container">
+            <table>
+                <tr>
+                    <td>RGB</td>
+                    <td>Depth</td>
+                    <td>Deformations</td>
+                </tr>
+            </table>
+            <div id="results-carousel" class="carousel results-carousel">
+                <div class="item item-18">
+                    <video poster="" id="18" autoplay controls muted loop playsinline height="100%">
+                        <source src="./static/videos/NVS/18.mp4"
+                                type="video/mp4">
+                    </video>
+<!--                    <table>-->
+<!--                        <tr><td>RGB</td><td>Depth</td><td>Deformations</td></tr>-->
+<!--                    </table>-->
+                </div>
+                <div class="item item-30">
+                    <video poster="" id="30" autoplay controls muted loop playsinline height="100%">
+                        <source src="./static/videos/NVS/30.mp4"
+                                type="video/mp4">
+                    </video>
+                </div>
+                <div class="item item-38">
+                    <video poster="" id="38" autoplay controls muted loop playsinline height="100%">
+                        <source src="./static/videos/NVS/38.mp4"
+                                type="video/mp4">
+                    </video>
+                </div>
+                <div class="item item-85">
+                    <video poster="" id="85" autoplay controls muted loop playsinline height="100%">
+                        <source src="./static/videos/NVS/85.mp4"
+                                type="video/mp4">
+                    </video>
+                </div>
+                <div class="item item-124">
+                    <video poster="" id="124" autoplay controls muted loop playsinline height="100%">
+                        <source src="./static/videos/NVS/124.mp4"
+                                type="video/mp4">
+                    </video>
+                </div>
+                <div class="item-175">
+                    <video poster="" id="175" autoplay controls muted loop playsinline height="100%">
+                        <source src="./static/videos/NVS/175.mp4"
+                                type="video/mp4">
+                    </video>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Abstract -->
+<section class="section">
+    <div class="container is-max-desktop">
+        <!-- Abstract. -->
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Abstract</h2>
+                <div class="content has-text-justified">
+                    <p>
+                        We focus on reconstructing high-fidelity radiance fields of human heads, capturing their animations over time, and synthesizing re-renderings from novel viewpoints at arbitrary time steps.
+                    </p>
+                    <p>
+                        To this end, we propose a new multi-view capture setup composed of 16 calibrated machine vision cameras that record time-synchronized images at 7.1 MP resolution and 73 frames per second.
+                        With our setup, we collect a new dataset of over 4700 high-resolution, high-framerate sequences of more than 220 human heads, from which we introduce a new human head reconstruction benchmark.
+                        The recorded sequences cover a wide range of facial dynamics, including head motions, natural expressions, emotions, and spoken language.
+                    </p>
+                    <p>
+                        In order to reconstruct high-fidelity human heads, we propose Dynamic Neural Radiance Fields using Hash Ensembles (NeRSemble).
+                        We represent scene dynamics by combining a deformation field and an ensemble of 3D multi-resolution hash encodings.
+                        The deformation field allows for precise modeling of simple scene movements, while the ensemble of hash encodings helps to represent complex dynamics.
+                        As a result, we obtain radiance field representations of human heads that capture motion over time and facilitate re-rendering of arbitrary novel viewpoints.
+                        In a series of experiments, we explore the design choices of our method and demonstrate that our approach outperforms state-of-the-art dynamic radiance field approaches by a significant margin.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <!--/ Abstract. -->
+
+        <!-- Paper video. -->
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Video</h2>
+                <div class="publication-video">
+                    <iframe src="https://www.youtube.com/embed/a-OAWqBzldU" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container is-max-desktop">
+        <!-- Abstract. -->
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Method Overview</h2>
+                <div class="content has-text-justified">
+                    <!-- TODO: Make Method Overview Figure + Text -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- TODO: Dataset Overview -->
+<!-- TODO: Sliders -->
+<!-- TODO: Zoom-ins slow-motion? -->
+<!-- TODO: BibTex -->
+
+</body>
+
+</html>
