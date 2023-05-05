@@ -22,6 +22,10 @@
     <link rel="stylesheet" href="./static/css/index.css">
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script
+            src="https://code.jquery.com/color/jquery.color-2.2.0.min.js"
+            integrity="sha256-aSe2ZC5QeunlL/w/7PsVKmV+fa0eDbmybn/ptsKHR6I="
+            crossorigin="anonymous"></script>
     <script defer src="./static/js/fontawesome.all.min.js"></script>
     <script src="./static/js/bulma-carousel.js"></script>
     <script src="./static/js/bulma-slider.min.js"></script>
@@ -254,16 +258,88 @@
     </div>
 </section>
 
-<!--<section class="section">-->
-<!--    <div class="container">-->
-<!--        <div class="columns is-centered">-->
-<!--            <div class="column is-full-width">-->
-<!--                <input id="slider-1" class="slider is-fullwidth" step="0.25" min="-0.75" max="0.75" value="0" type="range">-->
-<!--                <output for="slider-1">0</output>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-<!--</section>-->
+<section class="section">
+    <div class="container">
+        <div class="columns has-text-centered">
+            <div class="column">
+                <h2 class="title is-3" style="text-align: center">Contributions of Individual Hashtables</h2>
+            </div>
+        </div>
+        <div class="columns is-centered">
+            <div class="column is-one-fifth">
+                <div id="hash-table-image-wrapper"></div>
+            </div>
+        </div>
+
+        <div id="blend-weights-vector-visualization" class="columns is-centered">
+            <div class="column is-two-fifths">
+                <div class="columns is-centered is-vcentered">
+                    <div class="column is-narrow">
+                        𝛽<sub>𝑡</sub> =&nbsp;
+                    </div>
+                    <div class="column is-narrow">
+                        <table id="blend-weights-vector">
+                            <tr>
+                                <td id="blend-weights-vector-0"></td>
+                                <td id="blend-weights-vector-1"></td>
+                                <td id="blend-weights-vector-2"></td>
+                                <td id="blend-weights-vector-3"></td>
+                                <td></td>
+                                <td id="blend-weights-dots">...</td>
+                                <td></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="hash-table-sliders" class="columns is-centered">
+            <div class="column is-one-quarter">
+                <div class="columns is-vcentered">
+                    <div class="column is-narrow">
+                        𝛽<sub>𝑡,2</sub>:
+                    </div>
+                    <div class="column">
+                        <input id="slider-hash-table-1" class="slider is-fullwidth" step="0.25" min="-0.75" max="0.75" value="0" type="range">
+                    </div>
+                </div>
+                <div class="columns is-vcentered">
+                    <div class="column is-narrow">
+                        𝛽<sub>𝑡,3</sub>:
+                    </div>
+                    <div class="column">
+                        <input id="slider-hash-table-2" class="slider is-fullwidth" step="0.25" min="-0.75" max="0.75" value="0" type="range">
+                    </div>
+                </div>
+                <div class="columns is-vcentered">
+                    <div class="column is-narrow">
+                        𝛽<sub>𝑡,4</sub>:
+                    </div>
+                    <div class="column">
+                        <input id="slider-hash-table-3" class="slider is-fullwidth" step="0.25" min="-0.75" max="0.75" value="0" type="range">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="columns is-centered">
+            <div class="column is-four-fifths has-text">
+                <p>
+                    During training, blend weights 𝛽<sub>𝑡</sub> are optimized for each timestep 𝑡 to combine the hash tables s.t. they explain the observed expression.
+                </p>
+                <p>
+                    At inference time, choosing different blend weights 𝛽<sub>𝑡</sub> allows certain control over the person's expression.
+                </p>
+                <p>
+                    While the first hash table H<sub>1</sub> learns a representation similar to the mean face of a person, the remaining hash tables H<sub>𝑖</sub> add further expression-dependent details to the scene.
+                </p>
+
+            </div>
+        </div>
+
+    </div>
+</section>
 
 <section class="section" id="BibTeX">
     <div class="container is-max-desktop content">
@@ -282,7 +358,6 @@
 </section>
 
 <!-- TODO: Dataset Overview -->
-<!-- TODO: Sliders -->
 <!-- TODO: Zoom-ins slow-motion? -->
 <!-- TODO: BibTex -->
 

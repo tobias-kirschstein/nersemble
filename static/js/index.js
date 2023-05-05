@@ -19,13 +19,78 @@
 //   $('#interpolation-image-wrapper').empty().append(image);
 // }
 
+var hashTableImages = {};
+function preloadHashTableImages() {
+    const targets = [-0.75, -0.5, -0.25, "0.0", 0.25, 0.5, 0.75];
+
+    let key;
+    let imageSrc;
+    for (let beta1 of targets) {
+        for (let beta2 of targets) {
+            for (let beta3 of targets) {
+                key = beta1 + "_" + beta2 + "_" + beta3
+                imageSrc = "./static/images/blend_weight_interpolations/" + key + ".jpeg"
+                hashTableImages[key] = new Image();
+                hashTableImages[key].src = imageSrc
+            }
+        }
+    }
+}
+
+function computeBlendWeightColor(beta) {
+    positiveColor = $.Color("#E06666");
+    negativeColor = $.Color("#0095dd");
+
+    if (beta < 0) {
+        blendColor = negativeColor;
+    } else {
+        blendColor = positiveColor;
+    }
+    white = $.Color("#FFF");
+    alpha = Math.abs(beta) / 0.75;
+
+    blendedColor = blendColor.alpha(alpha).blend(white.alpha(1 - alpha));
+
+    return blendedColor;
+}
+
+function updateHashTableImage() {
+    var beta1 = $("#slider-hash-table-1").val();
+    var beta2 = $("#slider-hash-table-2").val();
+    var beta3 = $("#slider-hash-table-3").val();
+
+    beta1 = beta1 == 0 ? "0.0" : beta1;
+    beta2 = beta2 == 0 ? "0.0" : beta2;
+    beta3 = beta3 == 0 ? "0.0" : beta3;
+
+    key = beta1 + "_" + beta2 + "_" + beta3;
+
+    var image = hashTableImages[key];
+    image.ondragstart = function() { return false; };
+    image.oncontextmenu = function() { return false; };
+    $('#hash-table-image-wrapper').empty().append(image);
+
+    // Update vector
+    $("#blend-weights-vector-1").css({"backgroundColor": computeBlendWeightColor(beta1)});
+    $("#blend-weights-vector-2").css({"backgroundColor": computeBlendWeightColor(beta2)});
+    $("#blend-weights-vector-3").css({"backgroundColor": computeBlendWeightColor(beta3)});
+}
+
 
 $(document).ready(function() {
+    preloadHashTableImages();
+    updateHashTableImage();
+
     bulmaCarousel.attach('#results-carousel', {
         slidesToScroll: 1,
         slidesToShow: 1,
         loop: true,
         infinite: true,
+    });
+
+    bulmaSlider.attach();
+    $("#slider-hash-table-1, #slider-hash-table-2, #slider-hash-table-3").on("input", function () {
+        updateHashTableImage();
     });
 
     // // Check for click events on the navbar burger icon

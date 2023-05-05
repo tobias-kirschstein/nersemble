@@ -140,6 +140,50 @@ a:hover {
     height: 100%;
 }
 
+#hash-table-sliders div.columns {
+    margin-bottom: 0;
+}
+
+#hash-table-sliders div.column {
+    padding-bottom: 0;
+    padding-top: 0;
+}
+
+
+#blend-weights-vector-visualization .column {
+    padding-left: 0;
+    padding-right: 0;
+
+}
+
+#blend-weights-vector {
+    border-spacing: 2px;
+    border-collapse: separate;
+    border: 1px solid #000000;
+    background-color: #eee;
+}
+
+#blend-weights-vector tr {
+    height: 40px;
+}
+
+#blend-weights-vector td {
+    border: 1px solid #000000;
+    background-color: #fff;
+    width: 40px;
+    line-height: 30px;
+    text-align: center;
+}
+
+#blend-weights-vector td#blend-weights-dots {
+    border: none;
+    background-color: transparent;
+}
+
+#blend-weights-vector #blend-weights-vector-0 {
+    background-color: #BF0000;
+}
+
 /*.publication-body img {*/
 /*}*/
 
