@@ -237,16 +237,31 @@
 
 <section class="section">
     <div class="container is-max-desktop">
-        <!-- Abstract. -->
-        <div class="columns is-centered has-text-centered">
-            <div class="column is-four-fifths">
-                <h2 class="title is-3">Method Overview</h2>
-                <div class="content has-text-justified">
-                    <!-- TODO: Make Method Overview Figure + Text -->
+        <div class="columns is-centered">
+            <div class="column is-full-width">
+                <h2 class="title is-3" style="text-align: center">Method Overview</h2>
+                <img src="static/images/method_overview.jpg" width="100%" />
+                <div class="content has-text">
+                    <p>
+                        <samp>NeRSemble</samp> represents a spatio-temporal radiance field for dynamic NVS using volume rendering (left).
+                        On the right side, we show how NeRSemble obtains a density 𝜎(x) and color value c(x, d) for a point x on a ray at time 𝑡:
+                    </p>
+                    <ol id="method-overview-list">
+                        <li>Given the deformation code 𝝎<sub>𝑡</sub> the point x is warped to x′ = D(x, 𝝎<sub>𝑡</sub> ) in the canonical space.</li>
+                        <li>The resulting point is used to query features H<sub>𝑖</sub>(x′) from the 𝑖-th hash grid in our ensemble.</li>
+                        <li>The resulting features are blended using weights 𝛽<sub>𝑡</sub> . Note that both 𝝎<sub>𝑡</sub> and 𝛽<sub>𝑡</sub> contribute to explaining temporal changes.</li>
+                        <li>We predict density 𝜎(x) and view-dependent color c(x, d) from the blended features using an efficient rendering head consisting of two small MLPs.</li>
+                    </ol>
                 </div>
             </div>
         </div>
+    </div>
+</section>
 
+<section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+        <h2 class="title" style="text-align: center">BibTeX</h2>
+        <pre><code>Coming Soon</code></pre>
     </div>
 </section>
 
