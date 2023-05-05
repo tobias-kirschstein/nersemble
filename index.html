@@ -131,7 +131,7 @@
                         type="video/mp4">
             </video>
             <h2 class="subtitle has-text-centered">
-                <span class="dnerf">NeRSemble</span> takes multi-view video recordings of a person and allows rendering from arbitrary viewpoints.
+                <samp>NeRSemble</samp> takes multi-view video recordings of a person and allows rendering from arbitrary viewpoints.
             </h2>
         </div>
     </div>
@@ -210,7 +210,7 @@
                         The recorded sequences cover a wide range of facial dynamics, including head motions, natural expressions, emotions, and spoken language.
                     </p>
                     <p>
-                        In order to reconstruct high-fidelity human heads, we propose Dynamic Neural Radiance Fields using Hash Ensembles (NeRSemble).
+                        In order to reconstruct high-fidelity human heads, we propose Dynamic Neural Radiance Fields using Hash Ensembles (<samp>NeRSemble</samp>).
                         We represent scene dynamics by combining a deformation field and an ensemble of 3D multi-resolution hash encodings.
                         The deformation field allows for precise modeling of simple scene movements, while the ensemble of hash encodings helps to represent complex dynamics.
                         As a result, we obtain radiance field representations of human heads that capture motion over time and facilitate re-rendering of arbitrary novel viewpoints.
@@ -242,7 +242,7 @@
                 <div class="content has-text">
                     <p>
                         <samp>NeRSemble</samp> represents a spatio-temporal radiance field for dynamic NVS using volume rendering (left).
-                        On the right side, we show how NeRSemble obtains a density 𝜎(x) and color value c(x, d) for a point x on a ray at time 𝑡:
+                        On the right side, we show how <samp>NeRSemble</samp> obtains a density 𝜎(x) and color value c(x, d) for a point x on a ray at time 𝑡:
                     </p>
                     <ol id="method-overview-list">
                         <li>Given the deformation code 𝝎<sub>𝑡</sub> the point x is warped to x′ = D(x, 𝝎<sub>𝑡</sub> ) in the canonical space.</li>
@@ -269,5 +269,23 @@
 <!-- TODO: BibTex -->
 
 </body>
+
+<footer class="footer">
+<div class="container">
+    <div class="columns">
+        <div class="column is-full-width">
+            <div class="content has-text-centered">
+                <p>
+                    Website inspired by <a href="https://keunhong.com/">Keunhong Park</a>'s <a href="https://nerfies.github.io/">Nerfies website</a>.
+                </p>
+                <p>
+                    Please contact <a href="https://niessnerlab.org/members/tobias_kirschstein/profile.html">Tobias Kirschstein</a> for feedback and questions.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</footer>
 
 </html>

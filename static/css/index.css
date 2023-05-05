@@ -20,7 +20,6 @@ ol#method-overview-list {
 }
 ol#method-overview-list > li {
     list-style: none;
-    padding-left: 25px;
 }
 
 ol#method-overview-list > li:before {
@@ -103,13 +102,14 @@ ol#method-overview-list > li:before {
 /*.publication-authors {*/
 /*}*/
 
-/*.publication-authors a {*/
-/*   color: hsl(204, 86%, 53%) !important;*/
-/*}*/
+a {
+   color: #0065bd;
+}
 
-/*.publication-authors a:hover {*/
-/*    text-decoration: underline;*/
-/*}*/
+a:hover {
+    color: #0065bd;
+    text-decoration: underline;
+}
 
 /*.author-block {*/
 /*  display: inline-block;*/
