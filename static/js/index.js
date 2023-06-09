@@ -81,14 +81,29 @@ $(document).ready(function() {
     preloadHashTableImages();
     updateHashTableImage();
 
-    bulmaCarousel.attach('#results-carousel', {
+    var carousels = bulmaCarousel.attach('#results-carousel', {
         slidesToScroll: 1,
         slidesToShow: 1,
         loop: true,
         infinite: true,
     });
 
-    bulmaSlider.attach();
+    // Start playing next video in carousel and pause previous video to limit load on browser
+    for(var i = 0; i < carousels.length; i++) {
+        // Add listener to  event
+        carousels[i].on('before:show', state => {
+            var nextId = (state.next + state.length) % state.length;  // state.next can be -1 or larger than the number of videos
+            var nextVideoElement = $("#results-carousel .slider-item[data-slider-index='" + nextId + "'] video")[0];
+            var previousVideoElement = $("#results-carousel .slider-item[data-slider-index='" + state.index + "'] video")[0];
+
+            previousVideoElement.pause();
+            previousVideoElement.currentTime = 0;
+            nextVideoElement.currentTime = 0;
+            nextVideoElement.play();
+        });
+    }
+
+
     $("#slider-hash-table-1, #slider-hash-table-2, #slider-hash-table-3").on("input", function () {
         updateHashTableImage();
     });
