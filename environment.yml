@@ -1,4 +1,4 @@
-name: nersemble-3
+name: nersemble
 
 channels:
   - nvidia/label/cuda-11.7.1
@@ -33,7 +33,7 @@ dependencies:
     - nerfacc==0.5.2+pt20cu117  # pre-build wheel. Avoids compilation issues
 
     # tinycudann
-    # - git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch  # Needs to be installed afterwards manually?
+    # - git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch  # Needs to be installed afterwards
 
     # Custom packages for facilitating ML research
     - dreifus==0.0.9
