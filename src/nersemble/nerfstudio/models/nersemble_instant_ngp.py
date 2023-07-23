@@ -2,24 +2,25 @@ from __future__ import annotations
 
 from dataclasses import field, dataclass
 from math import sqrt
-from typing import Type, Dict, List, Optional
+from typing import Type, Dict, List, Optional, Tuple
 
 import nerfacc
 import torch
+from dreifus.util.colormap import apply_scene_flow_colormap
 from jaxtyping import Shaped
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.engine.callbacks import TrainingCallbackAttributes, TrainingCallback, TrainingCallbackLocation
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.model_components.losses import MSELoss
-from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
 from nerfstudio.models.instant_ngp import NGPModel, InstantNGPModelConfig
-from nerfstudio.utils import writer
+from nerfstudio.utils import writer, colormaps
+from nerfstudio.utils.colormaps import ColormapOptions
 from torch import Tensor, nn
 from torch.nn import Parameter, init
 from torchmetrics import PeakSignalNoiseRatio
@@ -30,6 +31,7 @@ from nersemble.nerfstudio.engine.generic_scheduler import GenericScheduler
 from nersemble.nerfstudio.field_components.deformation_field import SE3DeformationField, SE3DeformationFieldConfig
 from nersemble.nerfstudio.field_components.hash_ensemble import HashEnsembleConfig
 from nersemble.nerfstudio.fields.nersemble_nerfacto_field import NeRSembleNeRFactoField
+from nersemble.nerfstudio.model_components.nersemble_deformation_renderer import DeformationRenderer
 from nersemble.nerfstudio.model_components.nersemble_volumetric_sampler import NeRSembleVolumetricSampler
 from nersemble.nerfstudio.models.base import BaseModel, BaseModelConfig
 
@@ -134,6 +136,7 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer(method="expected")
+        self.renderer_deformation = DeformationRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -259,9 +262,9 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             assert ray_samples.frustums.offsets is None, "ray samples have already been warped"
             ray_samples.frustums.offsets = torch.zeros_like(ray_samples.frustums.origins)
             # Need to clone here, as directions was created in a no_grad() block
-            #ray_samples.frustums.directions = ray_samples.frustums.directions.clone()
+            # ray_samples.frustums.directions = ray_samples.frustums.directions.clone()
 
-            #time_codes = ray_samples.metadata['time_codes']
+            # time_codes = ray_samples.metadata['time_codes']
 
             # Deform all samples into the latent canonical space
             self.deformation_field(ray_samples, warp_code=time_codes, windows_param=window_deform)
@@ -351,6 +354,12 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             "ray_indices": (ray_indices,),
             "weights": (weights,)
         }
+
+        if ray_samples.frustums.offsets is not None:
+            deformation_per_ray = self.renderer_deformation(weights=weights, ray_samples=ray_samples,
+                                                            ray_indices=ray_indices, num_rays=num_rays)
+            outputs["deformation"] = deformation_per_ray
+
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -394,11 +403,99 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
         if dist_loss is not None:
             loss_dict["dist_loss"] = dist_loss
 
-        print("Losses: ")
-        for key, value in loss_dict.items():
-            print(f" - {key}: {value.item(): .3f}")
-
         return loss_dict
+
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        rgb = outputs["rgb"]
+        image = batch["image"].to(self.device)
+
+        metrics_dict = dict()
+
+        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["num_samples_per_batch"] = outputs["num_samples_per_ray"].sum()
+
+        if "alpha_map" in batch:
+            mask = batch["alpha_map"].squeeze(1) > 127
+            metrics_dict["psnr_masked"] = self.psnr(rgb[mask], image[mask])
+
+        return metrics_dict
+
+    def get_image_metrics_and_images(
+            self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+
+        image = batch["image"].to(self.device)
+        rgb = outputs["rgb"]
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
+            outputs["depth"],
+            accumulation=outputs["accumulation"],
+        )
+
+        combined_rgb = torch.cat([image, rgb], dim=1)
+        combined_acc = torch.cat([acc], dim=1)
+        combined_depth = torch.cat([depth], dim=1)
+        error_image = ((rgb - image) ** 2).mean(dim=-1).unsqueeze(-1)
+        error_image = colormaps.apply_colormap(error_image, colormap_options=ColormapOptions(colormap="turbo"))
+
+        # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
+        image = torch.moveaxis(image, -1, 0)[None, ...]
+        rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
+
+        psnr = self.psnr(image, rgb)
+        ssim = self.ssim(image, rgb)
+        lpips = self.lpips(image, rgb)
+        mse = self.rgb_loss(image, rgb)
+
+        # all of these metrics will be logged as scalars
+        metrics_dict = {
+            "psnr": float(psnr.item()),
+            "ssim": float(ssim),
+            "lpips": float(lpips),
+            "mse": float(mse),
+        }  # type: ignore
+
+        images_dict = {
+            "img": combined_rgb,
+            "accumulation": combined_acc,
+            "depth": combined_depth,
+            "error": error_image
+        }
+
+        if "deformation" in outputs:
+            deformation_img = apply_scene_flow_colormap(outputs["deformation"])
+            images_dict["deformation"] = deformation_img
+
+        # Metrics and images with alpha masks
+        if "alpha_map" in batch:
+            alpha_mask = batch["alpha_map"] / 255.  # [H, W, 1]
+            alpha_mask = torch.from_numpy(alpha_mask).to(rgb)
+
+            image_masked = batch["image"].clone().to(self.device)
+            rgb_masked = rgb[0].permute(1, 2, 0)
+
+            image_masked = alpha_mask * image_masked + (1 - alpha_mask)
+            rgb_masked = alpha_mask * rgb_masked + (1 - alpha_mask)
+
+            combined_rgb_masked = torch.cat([image_masked, rgb_masked], dim=1)
+
+            image_masked = torch.moveaxis(image_masked, -1, 0)[None, ...]
+            rgb_masked = torch.moveaxis(rgb_masked, -1, 0)[None, ...]
+
+            psnr_masked = self.psnr(image_masked, rgb_masked)
+            ssim_masked = self.ssim(image_masked, rgb_masked)
+            lpips_masked = self.lpips(image_masked, rgb_masked)
+            mse_masked = self.rgb_loss(image_masked, rgb_masked)
+
+            metrics_dict["psnr_masked"] = float(psnr_masked)
+            metrics_dict["ssim_masked"] = float(ssim_masked)
+            metrics_dict["lpips_masked"] = float(lpips_masked)
+            metrics_dict["mse_masked"] = float(mse_masked)
+
+            images_dict["img_masked"] = combined_rgb_masked
+
+
+        return metrics_dict, images_dict
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = super().get_param_groups()
@@ -413,5 +510,3 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             param_groups["deformation_field"] = list(self.deformation_field.parameters())
 
         return param_groups
-
-

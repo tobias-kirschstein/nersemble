@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal, Optional
 
+import os
 import torch
 import tyro
 from elias.util.random import make_deterministic
@@ -43,16 +44,37 @@ def main(
         name: Optional[str] = None,
         vis: Literal['viewer', 'wandb'] = 'wandb',
 
+        # Learning rates
         lr_main: float = 5e-3,
         lr_deformation_field: float = 1e-3,
         lr_embeddings: float = 5e-3,
 
+        # Losses
         lambda_alpha_loss: float = 1e-2,
         lambda_near_loss: float = 1e-4,
         lambda_empty_loss: float = 1e-2,
         lambda_depth_loss: float = 1e-4,
         lambda_dist_loss: float = 1e-4,
+
+        # Scheduler
+        window_hash_encodings_begin: int = 40000,
+        window_hash_encodings_end: int = 80000,
+        window_deform_begin: int = 0,
+        window_deform_end: int = 20000,
+
+        # Hash Ensemble
+        use_hash_ensemble: bool = True,
+        n_hash_encodings: int = 32,
+        latent_dim_time: int = 32,
+
+        # Deformation Field
+        use_deformation_field: bool = True,
+        latent_dim_time_deform: int = 128
+
+
 ):
+    os.environ['WANDB_RUN_GROUP'] = "nersemble"
+
     seed = 19980801
     make_deterministic(seed)
 
@@ -62,7 +84,7 @@ def main(
 
     # TODO: For some reason Instant NGP only really works if we scale the world coordinate system
     scale_factor = 9
-    n_timesteps = 1
+    n_timesteps = 3
     skip_timesteps = 100
 
     if participant_id in SCENE_BOXES:
@@ -80,8 +102,8 @@ def main(
         run_name=run_name,
 
         steps_per_eval_batch=500,
-        steps_per_eval_image=10000,
-        steps_per_eval_all_images=1000000,
+        steps_per_eval_image=1000,  # 20000,
+        steps_per_eval_all_images=5000,  # 50000,
         steps_per_save=20000,
         max_num_iterations=100001,
         save_only_latest_checkpoint=False,
@@ -126,7 +148,7 @@ def main(
 
                 # Sequence
                 n_timesteps=n_timesteps,
-                latent_dim_time=2,  # If hash ensemble is used, this must be n_hash_encodings!
+                latent_dim_time=latent_dim_time,  # If hash ensemble is used, this must be n_hash_encodings!
 
                 # Losses
                 use_masked_rgb_loss=True,
@@ -137,27 +159,27 @@ def main(
                 lambda_dist_loss=lambda_dist_loss,
 
                 # Hash Ensemble
-                use_hash_ensemble=False,
+                use_hash_ensemble=use_hash_ensemble,
                 hash_ensemble_config=HashEnsembleConfig(
-                    n_hash_encodings=2,
+                    n_hash_encodings=n_hash_encodings,
                     hash_encoding_config=TCNNHashEncodingConfig(),
                     disable_initial_hash_ensemble=True,
                     use_soft_transition=True
                 ),
 
                 # Deformation Field
-                use_deformation_field=False,
+                use_deformation_field=use_deformation_field,
                 use_separate_deformation_time_embedding=True,
                 deformation_field_config=SE3DeformationFieldConfig(
-                    warp_code_dim=128,
-                    mlp_layer_width=64,
+                    warp_code_dim=latent_dim_time_deform,
+                    mlp_layer_width=32,  # TODO: change back
                 ),
 
                 # Scheduler
-                window_hash_encodings_begin=100,
-                window_hash_encodings_end=1000,
-                window_deform_begin=1000,
-                window_deform_end=10000,
+                window_hash_encodings_begin=window_hash_encodings_begin,
+                window_hash_encodings_end=window_hash_encodings_end,
+                window_deform_begin=window_deform_begin,
+                window_deform_end=window_deform_end,
             )
         ),
 

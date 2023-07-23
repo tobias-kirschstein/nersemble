@@ -12,7 +12,7 @@ which creates a new conda environment `nersemble` (Installation may take a while
 
 Afterwards, manually install `tinycudann`:
 ```
-pip install --force-reinstall --no-deps git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 (If you get an error like `ImportError: DLL load failed while importing _86_C: The specified procedure could not be found.` later on)
 

@@ -61,8 +61,8 @@ class NeRSembleTrainer(Trainer):
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
                         duration=self.world_size
-                        * self.pipeline.datamanager.get_train_rays_per_batch()
-                        / max(0.01, train_t.duration),  # Avoid Division by zero error
+                                 * self.pipeline.datamanager.get_train_rays_per_batch()
+                                 / max(0.01, train_t.duration),  # Avoid Division by zero error
                         step=step,
                         avg_over_steps=True,
                     )
@@ -80,7 +80,7 @@ class NeRSembleTrainer(Trainer):
                     # (https://pytorch.org/docs/stable/notes/cuda.html#cuda-memory-management)
                     # for more details about GPU memory management.
                     writer.put_scalar(
-                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024**2), step=step
+                        name="GPU Memory (MB)", scalar=torch.cuda.max_memory_allocated() / (1024 ** 2), step=step
                     )
 
                 # Do not perform evaluation if there are no validation images
@@ -111,41 +111,75 @@ class NeRSembleTrainer(Trainer):
         if not self.config.viewer.quit_on_train_completion:
             self._train_complete_viewer()
 
-    @profiler.time_function
-    def train_iteration(self, step: int) -> TRAIN_INTERATION_OUTPUT:
-        """Run one iteration with a batch of inputs. Returns dictionary of model losses.
-
-        Args:
-            step: Current training step.
+    def eval_iteration(self, step: int) -> None:
+        """NeRSemble overwrites eval_iteration() to
+         - log eval images from separate views with separate log keys
         """
 
-        self.optimizers.zero_grad_all()
-        cpu_or_cuda_str: str = self.device.split(":")[0]
+        # a batch of eval rays
+        if step_check(step, self.config.steps_per_eval_batch):
+            _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
+            eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
+            writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
+            writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
+            writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
 
-        with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision, cache_enabled=False):
-            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
-            loss = functools.reduce(torch.add, loss_dict.values())
-        self.grad_scaler.scale(loss).backward()  # type: ignore
-        self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+        # one eval image
+        if step_check(step, self.config.steps_per_eval_image):
+            with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
+                metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+            writer.put_time(
+                name=EventName.TEST_RAYS_PER_SEC,
+                duration=metrics_dict["num_rays"] / test_t.duration,
+                step=step,
+                avg_over_steps=True,
+            )
+            image_metrics_name = f"Eval Images Metrics (image {metrics_dict['image_idx']})"
+            image_group_name = f"Eval Images (image {metrics_dict['image_idx']})"
+            writer.put_dict(name=image_metrics_name, scalar_dict=metrics_dict, step=step)
+            for image_name, image in images_dict.items():
+                writer.put_image(name=image_group_name + "/" + image_name, image=image, step=step)
 
-        if self.config.log_gradients:
-            total_grad = 0
-            for tag, value in self.pipeline.model.named_parameters():
-                assert tag != "Total"
-                if value.grad is not None:
-                    grad = value.grad.norm()
-                    metrics_dict[f"Gradients/{tag}"] = grad
-                    total_grad += grad
+        # all eval images
+        if step_check(step, self.config.steps_per_eval_all_images):
+            metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
+            writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
 
-            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)
-
-        scale = self.grad_scaler.get_scale()
-        self.grad_scaler.update()
-        # If the gradient scaler is decreased, no optimization step is performed so we should not step the scheduler.
-        if scale <= self.grad_scaler.get_scale():
-            self.optimizers.scheduler_step_all(step)
-
-        # Merging loss and metrics dict into a single output.
-        return loss, loss_dict, metrics_dict
+    # @profiler.time_function
+    # def train_iteration(self, step: int) -> TRAIN_INTERATION_OUTPUT:
+    #     """Run one iteration with a batch of inputs. Returns dictionary of model losses.
+    #
+    #     Args:
+    #         step: Current training step.
+    #     """
+    #
+    #     self.optimizers.zero_grad_all()
+    #     cpu_or_cuda_str: str = self.device.split(":")[0]
+    #
+    #     with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision, cache_enabled=False):
+    #         _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
+    #         loss = functools.reduce(torch.add, loss_dict.values())
+    #     self.grad_scaler.scale(loss).backward()  # type: ignore
+    #     self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+    #
+    #     if self.config.log_gradients:
+    #         total_grad = 0
+    #         for tag, value in self.pipeline.model.named_parameters():
+    #             assert tag != "Total"
+    #             if value.grad is not None:
+    #                 grad = value.grad.norm()
+    #                 metrics_dict[f"Gradients/{tag}"] = grad
+    #                 total_grad += grad
+    #
+    #         metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)
+    #
+    #     scale = self.grad_scaler.get_scale()
+    #     self.grad_scaler.update()
+    #     # If the gradient scaler is decreased, no optimization step is performed so we should not step the scheduler.
+    #     if scale <= self.grad_scaler.get_scale():
+    #         self.optimizers.scheduler_step_all(step)
+    #
+    #     # Merging loss and metrics dict into a single output.
+    #     return loss, loss_dict, metrics_dict
 
     # TODO: , cache_enabled=False? For torch.autocast?

@@ -329,7 +329,7 @@ class NeRSembleDataParser(DataParser):
 
         # Scale timesteps [min, max] to [0, 1]
         times = [
-            (timestep - min_timestep) / (max_timestep - min_timestep) if min_timestep > timestep else 0
+            (timestep - min_timestep) / (max_timestep - min_timestep) if timestep > min_timestep else 0
             for timestep in original_timesteps]
 
         # When using nerfstudio times, each frame from each viewpoint is modeled as a separate "Camera"
