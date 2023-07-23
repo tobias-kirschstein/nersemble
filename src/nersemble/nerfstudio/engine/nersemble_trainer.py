@@ -134,8 +134,8 @@ class NeRSembleTrainer(Trainer):
                 step=step,
                 avg_over_steps=True,
             )
-            image_metrics_name = f"Eval Images Metrics (image {metrics_dict['image_idx']})"
-            image_group_name = f"Eval Images (image {metrics_dict['image_idx']})"
+            image_metrics_name = f"Eval Images Metrics (image {metrics_dict['cam_id']})"
+            image_group_name = f"Eval Images (image {metrics_dict['cam_id']})"
             writer.put_dict(name=image_metrics_name, scalar_dict=metrics_dict, step=step)
             for image_name, image in images_dict.items():
                 writer.put_image(name=image_group_name + "/" + image_name, image=image, step=step)

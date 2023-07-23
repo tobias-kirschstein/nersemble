@@ -4,18 +4,24 @@
 - nerfstudio
 - tinycudann
 
-The dependencies can be conveniently installed via:
-```
-conda env create -f environment.yml
-```
-which creates a new conda environment `nersemble` (Installation may take a while).
+ 1. Setup environment
+    ```
+    conda env create -f environment.yml
+    ```
+    which creates a new conda environment `nersemble` (Installation may take a while).
 
-Afterwards, manually install `tinycudann`:
-```
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-```
-(If you get an error like `ImportError: DLL load failed while importing _86_C: The specified procedure could not be found.` later on)
 
+ 2. Manually install `tinycudann`:
+    ```
+    pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+    ```
+    (Also helpful, if you get an error like `ImportError: DLL load failed while importing _86_C: The specified procedure could not be found.` later on)
+
+
+ 3. If you cloned the repository, also run 
+    ```shell
+    pip install -e .
+    ```
 ### 1.2. Troubleshooting
 
 You may run into this error at the beginning of training:

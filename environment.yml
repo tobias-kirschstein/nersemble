@@ -36,5 +36,8 @@ dependencies:
     # - git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch  # Needs to be installed afterwards
 
     # Custom packages for facilitating ML research
-    - dreifus==0.0.9
+    - dreifus==0.1.2
     - elias==0.2.3
+
+    # Misc
+    - environs
