@@ -1,0 +1,80 @@
+from dataclasses import dataclass, field
+from typing import Any, Dict, Tuple, Type
+
+import torch
+from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig, VanillaDataManager, TDataset
+
+from nersemble.nerfstudio.data.nersemble_pixel_sampler import NeRSemblePixelSampler
+from nersemble.nerfstudio.dataset.nersemble_dataset import NeRSembleInputDataset
+
+# These keys will additionally be passed to the model
+# They need separate handling since they refer to information that is relevant "per image" and not "per pixel/ray"
+ADDITIONAL_METADATA = ["depth_map", "timesteps", "cam_ids"]
+
+
+@dataclass
+class NeRSembleVanillaDataManagerConfig(VanillaDataManagerConfig):
+    _target: Type = field(default_factory=lambda: NeRSembleVanillaDataManager)
+
+
+class NeRSembleVanillaDataManager(VanillaDataManager):
+    config: NeRSembleVanillaDataManagerConfig
+
+    def setup_train(self):
+        # TODO: REMOVE
+        self.world_size = 0
+        super().setup_train()
+        self.world_size = 1
+
+    def create_train_dataset(self) -> NeRSembleInputDataset:
+        """Sets up the data loaders for training"""
+        return NeRSembleInputDataset(
+            dataparser_outputs=self.train_dataparser_outputs,
+            scale_factor=self.config.camera_res_scale_factor,
+        )
+
+    def create_eval_dataset(self) -> NeRSembleInputDataset:
+        """Sets up the data loaders for evaluation"""
+        return NeRSembleInputDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
+            scale_factor=self.config.camera_res_scale_factor,
+        )
+
+    def _get_pixel_sampler(self, dataset: TDataset, *args: Any, **kwargs: Any) -> NeRSemblePixelSampler:
+        """Use FamudyPixelSampler instead, which has special handling for per-image metadata such as
+        timestap, participant_id"""
+        if self.config.patch_size > 1:
+            raise NotImplementedError()
+            return PatchPixelSampler(*args, **kwargs, patch_size=self.config.patch_size)
+
+        return NeRSemblePixelSampler(additional_metadata=ADDITIONAL_METADATA, *args, **kwargs)
+
+    def _add_metadata_to_ray_bundle(self, ray_bundle: RayBundle, batch: Dict):
+        for metadata_key in ADDITIONAL_METADATA:
+            if metadata_key in batch:
+                metadata = batch[metadata_key]
+                if not isinstance(metadata, torch.Tensor):
+                    metadata = torch.tensor(batch[metadata_key]).repeat(*ray_bundle.shape).to(ray_bundle.origins.device)
+                ray_bundle.metadata[metadata_key] = metadata.unsqueeze(-1)
+
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+        ray_bundle, batch = super().next_train(step)
+
+        self._add_metadata_to_ray_bundle(ray_bundle, batch)
+
+        return ray_bundle, batch
+
+    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
+        ray_bundle, batch = super().next_eval(step)
+
+        self._add_metadata_to_ray_bundle(ray_bundle, batch)
+
+        return ray_bundle, batch
+
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        image_idx, ray_bundle, batch = super().next_eval_image(step)
+
+        self._add_metadata_to_ray_bundle(ray_bundle, batch)
+
+        return image_idx, ray_bundle, batch

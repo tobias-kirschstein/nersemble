@@ -1,0 +1,40 @@
+name: nersemble-3
+
+channels:
+  - nvidia/label/cuda-11.7.1
+  - pytorch
+  - conda-forge
+
+dependencies:
+  - python=3.8
+  - pip  # Otherwise, conda complains
+
+  # CUDA
+  - cudatoolkit
+  - cuda-nvcc
+  - cuda-libraries-dev  # For cuda_runtime.h
+  - ninja
+
+  # Additional PyTorch
+#  - functorch
+  - torchinfo
+
+  - pip:
+    # Torch
+    - --extra-index-url https://download.pytorch.org/whl/cu117
+    - torch==2.0.1+cu117
+    - torchvision==0.15.2+cu117
+    - einops
+    - torch_efficient_distloss
+
+    # Nerfstudio
+    - nerfstudio==0.3.1
+    - -f https://nerfacc-bucket.s3.us-west-2.amazonaws.com/whl/torch-2.0.0_cu117.html
+    - nerfacc==0.5.2+pt20cu117  # pre-build wheel. Avoids compilation issues
+
+    # tinycudann
+    # - git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch  # Needs to be installed afterwards manually?
+
+    # Custom packages for facilitating ML research
+    - dreifus==0.0.9
+    - elias==0.2.3

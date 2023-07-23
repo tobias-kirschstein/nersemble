@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nersemble"
+version = "0.0.1"
+description = "Official implementation of the Siggraph '23 paper 'NeRSemble: Multi-view Radiance Field Reconstruction of Human Heads'"
+authors = [
+    { name = "Tobias Kirschstein", email = "tobias.kirschstein@gmail.com" },
+]
+readme = "README.md"
+license = { text = "Apache 2.0" }
+requires-python = ">=3.8.0"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+# Main dependencies
+dependencies = [
+]
+
+[project.optional-dependencies]
+# Development packages, install via <<<PROJECT_NAME>>>[dev]
+dev = [
+]
+
+[project.scripts]
+# E.g., ns-download-data = "scripts.downloads.download_data:entrypoint"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["nersemble*"]  # Keep the '*', otherwise submodules are not found
