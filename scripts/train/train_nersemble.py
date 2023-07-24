@@ -80,6 +80,8 @@ def main(
         steps_per_eval_image: int = 20000,
         steps_per_eval_all_images: int = 50000,
 
+        # Ray Marching
+        cone_angle: float = 0.004,
 
 ):
     os.environ['WANDB_RUN_GROUP'] = "nersemble"
@@ -144,6 +146,7 @@ def main(
                 render_step_size=0.011 * scale_factor / 9.,  # TODO: Is render_step_size correct?
                 near_plane=0.05 * scale_factor / 9.,
                 far_plane=1e3 * scale_factor / 9.,
+                cone_angle=cone_angle,
                 # cone_angle=2e-3, # TODO: Setting to 0 leads to a lot of ray samples in beginning
                 alpha_thre=1e-2,  # TODO: Do lower values help? It seems like the occupancy grid is too aggressive
                 occ_thre=1e-2,
