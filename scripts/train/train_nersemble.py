@@ -82,6 +82,9 @@ def main(
 
         # Ray Marching
         cone_angle: float = 0.004,
+        alpha_thre: float = 1e-2,
+        occ_thre: float = 1e-2,
+        num_train_rays: int = 8192,
 
 ):
     os.environ['WANDB_RUN_GROUP'] = "nersemble"
@@ -136,7 +139,7 @@ def main(
                     use_view_frustum_culling=False,  # TODO: Not implemented yet
 
                 ),
-                train_num_rays_per_batch=8192,
+                train_num_rays_per_batch=num_train_rays,
                 eval_num_rays_per_batch=4096,
                 train_num_images_to_sample_from=24,
                 train_num_times_to_repeat_images=20,
@@ -144,12 +147,12 @@ def main(
 
             model=NeRSembleNGPModelConfig(
                 render_step_size=0.011 * scale_factor / 9.,  # TODO: Is render_step_size correct?
-                near_plane=0.05 * scale_factor / 9.,
+                near_plane=0.2 * scale_factor / 9.,
                 far_plane=1e3 * scale_factor / 9.,
                 cone_angle=cone_angle,
                 # cone_angle=2e-3, # TODO: Setting to 0 leads to a lot of ray samples in beginning
-                alpha_thre=1e-2,  # TODO: Do lower values help? It seems like the occupancy grid is too aggressive
-                occ_thre=1e-2,
+                alpha_thre=alpha_thre,  # TODO: Do lower values help? It seems like the occupancy grid is too aggressive
+                occ_thre=occ_thre,
                 early_stop_eps=0,  # Important, otherwise scene may start exploding
                 background_color="white",
                 grid_levels=1,  # Originally, NeRSemble was trained with a single grid, but larger values also work
