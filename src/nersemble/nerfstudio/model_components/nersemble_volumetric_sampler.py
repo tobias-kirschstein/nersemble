@@ -1,13 +1,45 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import torch
 from jaxtyping import Float
+from nerfacc import OccGridEstimator
 from nerfstudio.cameras.rays import RayBundle, RaySamples, Frustums
-from nerfstudio.model_components.ray_samplers import VolumetricSampler
+from nerfstudio.model_components.ray_samplers import VolumetricSampler, DensityFn
 from torch import Tensor
+
+from nersemble.nerfstudio.model_components.frustum import TorchFrustum
 
 
 class NeRSembleVolumetricSampler(VolumetricSampler):
+
+
+
+    def __init__(self,
+                 occupancy_grid: OccGridEstimator,
+                 density_fn: Optional[DensityFn] = None,
+                 scene_aabb: Optional[torch.Tensor] = None,
+                 camera_frustums: Optional[List[TorchFrustum]] = None,
+                 view_frustum_culling: Optional[int] = None):
+        super().__init__(occupancy_grid, density_fn)
+
+        self.camera_frustums = camera_frustums
+        self.view_frustum_culling = view_frustum_culling
+
+        if camera_frustums is not None and view_frustum_culling is not None:
+            camera_frustum_grid_resolution = self.occupancy_grid.resolution
+            grid_xs, grid_ys, grid_zs = torch.meshgrid(
+                torch.linspace(scene_aabb[0][0], scene_aabb[1][0], steps=camera_frustum_grid_resolution[0]),
+                torch.linspace(scene_aabb[0][1], scene_aabb[1][1], steps=camera_frustum_grid_resolution[1]),
+                torch.linspace(scene_aabb[0][2], scene_aabb[1][2], steps=camera_frustum_grid_resolution[2])
+            )
+            grid_points = torch.stack([grid_xs, grid_ys, grid_zs], dim=-1).view(-1, 3).to(camera_frustums[0]._half_space_collection.offsets.device)
+            visibility_masks = [camera_frustum.contains_points(grid_points) for camera_frustum in
+                                self.camera_frustums]
+            visibility_mask = torch.stack(visibility_masks).sum(dim=0) >= self.view_frustum_culling
+            visibility_mask = visibility_mask.view(*camera_frustum_grid_resolution)
+            self.camera_frustum_grid = visibility_mask
+        else:
+            self.camera_frustum_grid = None
 
     def forward(self,
                 ray_bundle: RayBundle,
@@ -54,6 +86,12 @@ class NeRSembleVolumetricSampler(VolumetricSampler):
             camera_indices = ray_bundle.camera_indices.contiguous()
         else:
             camera_indices = None
+
+        if self.camera_frustum_grid is not None:
+            # Intersect occupancy grid with view frustums
+            # For now, we can only use view frustum culling for the coarsest level
+            self.occupancy_grid.binaries[0] = self.occupancy_grid.binaries[0] & self.camera_frustum_grid
+
         ray_indices, starts, ends = self.occupancy_grid.sampling(
             rays_o=rays_o,
             rays_d=rays_d,

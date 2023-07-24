@@ -6,11 +6,8 @@ from typing import Optional, List, Type, Literal, Dict
 import numpy as np
 import torch
 from PIL import Image
-from dreifus.camera import CameraCoordinateConvention, PoseType
+from dreifus.camera import CameraCoordinateConvention
 from dreifus.graphics import Dimensions
-from dreifus.matrix import Pose
-from dreifus.vector import rotation_matrix_between_vectors, Vec3, offset_vector_between_line_and_point, \
-    angle_between_vectors
 from elias.config import implicit
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CameraType, Cameras
@@ -19,6 +16,7 @@ from nerfstudio.data.scene_box import SceneBox
 
 from nersemble.constants import EVALUATION_CAM_IDS, COMPLETE_CAM_ID_ORDER, SERIALS
 from nersemble.data_manager.multi_view_data import NeRSembleDataManager
+from nersemble.nerfstudio.model_components.frustum import TorchFrustum
 
 
 @dataclass
@@ -29,7 +27,7 @@ class NeRSembleDataParserOutputs(DataparserOutputs):
     color_correction_filenames: Optional[List[Path]] = None
     """image_filenames can have associated color corrections (affine transformation matrices). 
         The corresponding paths can be specified here"""
-
+    camera_frustums: Optional[List[TorchFrustum]] = None
 
 @dataclass
 class NeRSembleDataParserConfig(DataParserConfig):
@@ -142,7 +140,7 @@ class NeRSembleDataParser(DataParser):
         self._image_size = Dimensions(self._original_image_size.w // self.config.downscale_factor,
                                       self._original_image_size.h // self.config.downscale_factor)
 
-    def _generate_dataparser_outputs(self, split="train") -> DataparserOutputs:
+    def _generate_dataparser_outputs(self, split="train") -> NeRSembleDataParserOutputs:
         original_timesteps = self.config.get_timestep_to_original_mapping(self._n_effective_timesteps, split=split)
 
         # -----------------
@@ -236,13 +234,9 @@ class NeRSembleDataParser(DataParser):
         if self.config.use_view_frustum_culling:
             camera_frustums = []
             for cam_pose, intrinsic_param in zip(cam_to_world_poses, intrinsic_params):
-                # TODO: Frustum() class assumes OpenCV camera convention (x-> right, y -> down, z -> forward)
-                #   But nerfstudio uses OpenGL camera (x -> right, y -> up, z -> backward)
-                # cam_pose = Pose(cam_pose.numpy().copy())
-                cam_pose.negate_orientation_axis(1)
-                cam_pose.negate_orientation_axis(2)
+                cam_pose = cam_pose.copy().change_camera_coordinate_convention(CameraCoordinateConvention.OPEN_CV)
                 camera_frustums.append(TorchFrustum(torch.tensor(cam_pose),
-                                                    torch.tensor(intrinsic_params),
+                                                    torch.tensor(intrinsic_param),
                                                     self._original_image_size))
 
         fxs = torch.tensor(fxs)
@@ -303,11 +297,11 @@ class NeRSembleDataParser(DataParser):
                 )
             )
 
-        outputs = DataparserOutputs(
+        outputs = NeRSembleDataParserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
-            # camera_frustums=camera_frustums
+            camera_frustums=camera_frustums
         )
 
         if self.config.foreground_only:

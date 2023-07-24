@@ -7,6 +7,7 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConf
 from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
 
 from nersemble.nerfstudio.data.nersemble_pixel_sampler import NeRSemblePixelSampler
+from nersemble.nerfstudio.dataparser.nersemble_dataparser import NeRSembleDataParserOutputs
 from nersemble.nerfstudio.dataset.nersemble_dataset import NeRSembleInputDataset
 
 # These keys will additionally be passed to the model
@@ -21,6 +22,7 @@ class NeRSembleVanillaDataManagerConfig(VanillaDataManagerConfig):
 
 class NeRSembleVanillaDataManager(VanillaDataManager):
     config: NeRSembleVanillaDataManagerConfig
+    train_dataparser_outputs: NeRSembleDataParserOutputs
 
     def setup_train(self):
         super().setup_train()
@@ -34,10 +36,13 @@ class NeRSembleVanillaDataManager(VanillaDataManager):
 
     def create_train_dataset(self) -> NeRSembleInputDataset:
         """Sets up the data loaders for training"""
-        return NeRSembleInputDataset(
+        train_dataset = NeRSembleInputDataset(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
         )
+        # Communicate camera frustums to model
+        train_dataset.metadata["camera_frustums"] = self.train_dataparser_outputs.camera_frustums
+        return train_dataset
 
     def create_eval_dataset(self) -> NeRSembleInputDataset:
         """Sets up the data loaders for evaluation"""

@@ -113,7 +113,11 @@ class NeRSembleInputDataset(InMemoryInputDataset):
     def get_metadata(self, data: Dict) -> Dict:
         metadata = dict()
         image_idx = data['image_idx']
-        for _, data_func_dict in self.metadata.items():
+        for key, data_func_dict in self.metadata.items():
+            if key == 'camera_frustums':
+                # Camera frustums are stored in metadata, but are not typical per-image metadata as the other fields
+                continue
+
             assert "func" in data_func_dict, "Missing function to process data: specify `func` in `additional_inputs`"
             func = data_func_dict["func"]
             assert "kwargs" in data_func_dict, "No data to process: specify `kwargs` in `additional_inputs`"

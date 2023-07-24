@@ -87,6 +87,10 @@ def main(
         n_train_rays: int = 8192,
         grid_levels: int = 1,
 
+        # View Frustum Culling
+        use_view_frustum_culling: bool = True,
+        view_frustum_culling: int = 2
+
 ):
     os.environ['WANDB_RUN_GROUP'] = "nersemble"
 
@@ -194,6 +198,10 @@ def main(
                 window_hash_encodings_end=window_hash_encodings_end,
                 window_deform_begin=window_deform_begin,
                 window_deform_end=window_deform_end,
+
+                # View Frustum Culling
+                use_view_frustum_culling=use_view_frustum_culling,
+                view_frustum_culling=view_frustum_culling,
             )
         ),
 
@@ -219,6 +227,7 @@ def main(
     dataparser_config: NeRSembleDataParserConfig = config.pipeline.datamanager.dataparser
     dataparser_config.use_alpha_maps = lambda_alpha_loss > 0
     dataparser_config.use_depth_maps = lambda_empty_loss > 0 or lambda_near_loss > 0 or lambda_depth_loss > 0
+    dataparser_config.use_view_frustum_culling = config.pipeline.model.use_view_frustum_culling
 
     config.set_timestamp()
     # print config

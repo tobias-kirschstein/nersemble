@@ -65,6 +65,10 @@ class NeRSembleNGPModelConfig(InstantNGPModelConfig, BaseModelConfig):
     early_stop_eps: float = 1e-4
     occ_thre: float = 1e-2
 
+    # View Frustum Culling
+    use_view_frustum_culling: bool = False
+    view_frustum_culling: int = 2  # Intersection of that many cameras defines subset of 3D space
+
 
 class NeRSembleNGPModel(NGPModel, BaseModel):
     config: NeRSembleNGPModelConfig
@@ -129,6 +133,9 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
         self.sampler = NeRSembleVolumetricSampler(
             occupancy_grid=self.occupancy_grid,
             density_fn=self.field_density_fn,
+            scene_aabb=self.scene_box.aabb,
+            camera_frustums=self.kwargs['metadata']['camera_frustums'],
+            view_frustum_culling=self.config.view_frustum_culling if self.config.use_view_frustum_culling else None
         )
 
         # renderers
