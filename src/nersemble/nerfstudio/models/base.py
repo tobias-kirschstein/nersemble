@@ -15,6 +15,7 @@ from nersemble.nerfstudio.engine.generic_scheduler import GenericScheduler
 @dataclass
 class BaseModelConfig(ModelConfig):
     use_masked_rgb_loss: bool = False
+    alpha_mask_threshold: float = 0.5  # alpha values above count as "foreground"
 
     lambda_alpha_loss: float = 0
 
@@ -101,7 +102,6 @@ class BaseModel(Model):
 
         image = batch["image"].to(self.device)
 
-        # TODO (22.01.2023): Use alpha mask for computing masked RGB loss?
         if self.config.use_masked_rgb_loss and "mask" in batch:
             # Only compute RGB loss on non-masked pixels
             mask = self.get_mask_per_ray(batch)
@@ -109,10 +109,9 @@ class BaseModel(Model):
             rgb_loss = self.rgb_loss(image[mask], rgb_pred[mask])
         elif self.config.use_masked_rgb_loss and "alpha_map" in batch:
             alpha_per_ray = self.get_alpha_per_ray(batch)
-            mask = alpha_per_ray > 0.5
-            # rgb_loss = (alpha_per_ray.unsqueeze(1) * (image - rgb_pred) ** 2).mean()
-            # rgb_loss = self.rgb_loss(image[mask], rgb_pred[mask])
-            rgb_loss = (alpha_per_ray.unsqueeze(1) * (image - rgb_pred) ** 2).sum() / alpha_per_ray.sum()
+            mask = alpha_per_ray > self.config.alpha_mask_threshold
+            rgb_loss = self.rgb_loss(image[mask], rgb_pred[mask])
+            # rgb_loss = (alpha_per_ray.unsqueeze(1) * (image - rgb_pred) ** 2).sum() / alpha_per_ray.sum()
         else:
             rgb_loss = self.rgb_loss(image, rgb_pred)
 
@@ -229,7 +228,7 @@ class BaseModel(Model):
                       ):
         dist_loss = None
         if self.config.lambda_dist_loss > 0:
-            weights = weights.squeeze(1) # [S]
+            weights = weights.squeeze(1)  # [S]
 
             max_rays = self.config.dist_loss_max_rays
             # indices = (ray_indices.unsqueeze(1) == ray_indices.unique()[:max_rays]).any(dim=1)

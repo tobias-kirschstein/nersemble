@@ -171,6 +171,7 @@ def main(
                 lambda_empty_loss=lambda_empty_loss,
                 lambda_depth_loss=lambda_depth_loss,
                 lambda_dist_loss=lambda_dist_loss,
+                alpha_mask_threshold=0,
 
                 # Hash Ensemble
                 use_hash_ensemble=use_hash_ensemble,
