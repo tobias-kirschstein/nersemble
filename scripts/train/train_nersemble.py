@@ -97,8 +97,6 @@ def main(
         data_manager = NeRSembleDataManager(participant_id, sequence_name)
         n_timesteps = data_manager.get_n_timesteps()
 
-    # TODO: Implement caching for data
-
     if participant_id in SCENE_BOXES:
         scene_box = torch.tensor(SCENE_BOXES[participant_id]) * scale_factor / 9
     else:

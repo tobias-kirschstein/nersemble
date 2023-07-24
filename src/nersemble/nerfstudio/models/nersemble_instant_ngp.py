@@ -112,7 +112,6 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
                                                                self.config.deformation_field_config.warp_code_dim)
                 init.normal_(self.time_embedding_deformation.weight, mean=0.,
                              std=0.01 / sqrt(self.config.deformation_field_config.warp_code_dim))
-                # TODO: Continue with time_embedding_deformation
 
         self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 

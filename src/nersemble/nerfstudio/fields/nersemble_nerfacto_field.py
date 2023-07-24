@@ -240,7 +240,6 @@ class NeRSembleNeRFactoField(TCNNNerfactoField):
             metadata={"time_codes": time_codes}
         )
 
-        # TODO: warp ray samples
         density, _ = self.get_density(ray_samples, window_hash_encodings=window_hash_encodings)
         return density
 
