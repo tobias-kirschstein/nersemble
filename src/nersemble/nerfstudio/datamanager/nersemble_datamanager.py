@@ -21,12 +21,6 @@ class NeRSembleVanillaDataManagerConfig(VanillaDataManagerConfig):
 class NeRSembleVanillaDataManager(VanillaDataManager):
     config: NeRSembleVanillaDataManagerConfig
 
-    def setup_train(self):
-        # TODO: REMOVE
-        self.world_size = 0
-        super().setup_train()
-        self.world_size = 1
-
     def create_train_dataset(self) -> NeRSembleInputDataset:
         """Sets up the data loaders for training"""
         return NeRSembleInputDataset(
