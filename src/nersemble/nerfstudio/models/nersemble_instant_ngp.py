@@ -453,7 +453,7 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             "ssim": float(ssim),
             "lpips": float(lpips),
             "mse": float(mse),
-            "cam_id": batch['cam_ids']
+            "cam_id": float(batch['cam_ids']),  # cam_ids are necessary for correct image logging in trainer, but has to be float
         }  # type: ignore
 
         images_dict = {

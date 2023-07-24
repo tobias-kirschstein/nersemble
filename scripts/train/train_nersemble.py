@@ -69,7 +69,11 @@ def main(
 
         # Deformation Field
         use_deformation_field: bool = True,
-        latent_dim_time_deform: int = 128
+        latent_dim_time_deform: int = 128,
+
+        # Logging
+        steps_per_eval_image: int = 20000,
+        steps_per_eval_all_images: int = 50000,
 
 
 ):
@@ -102,12 +106,12 @@ def main(
         run_name=run_name,
 
         steps_per_eval_batch=500,
-        steps_per_eval_image=1000,  # 20000,
-        steps_per_eval_all_images=5000,  # 50000,
-        steps_per_save=20000,
-        max_num_iterations=100001,
-        save_only_latest_checkpoint=False,
-        mixed_precision=False,
+        steps_per_eval_image=steps_per_eval_image,
+        steps_per_eval_all_images=steps_per_eval_all_images,
+        steps_per_save=50000,
+        max_num_iterations=300001,
+        save_only_latest_checkpoint=True,
+        mixed_precision=True,
         log_gradients=False,
 
         pipeline=VanillaPipelineConfig(
@@ -121,11 +125,7 @@ def main(
                     # [[left, head front, down], [right, head back, up]]
                     scene_box=scene_box,
 
-                    use_view_frustum_culling=False,
-
-                    # auto_scale_poses=False,
-                    # center_method='none',
-                    # orientation_method='none',
+                    use_view_frustum_culling=False,  # TODO: Not implemented yet
 
                 ),
                 train_num_rays_per_batch=8192,
@@ -172,7 +172,6 @@ def main(
                 use_separate_deformation_time_embedding=True,
                 deformation_field_config=SE3DeformationFieldConfig(
                     warp_code_dim=latent_dim_time_deform,
-                    mlp_layer_width=32,  # TODO: change back
                 ),
 
                 # Scheduler
