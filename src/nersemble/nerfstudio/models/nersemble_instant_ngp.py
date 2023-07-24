@@ -232,7 +232,7 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
         time_codes = None
         if self.time_embedding is not None:
             assert times is not None, "Times need to be provided to NeRSemble's density_fn"
-            timesteps = (times * (self.config.n_timesteps - 1)).int().squeeze(1)
+            timesteps = (times * (self.config.n_timesteps - 1)).round().int().squeeze(1)
             time_codes = self.time_embedding(timesteps)
 
         return self.field.density_fn(positions,
@@ -291,7 +291,7 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
         # Lookup time codes via timesteps if they were not already provided
         if ray_bundle.times is not None:
             # Obtain timesteps from "times" field of ray bundle. [0-1] -> [0 - (T-1)]
-            timesteps = (ray_bundle.times[ray_indices] * (self.config.n_timesteps - 1)).int().squeeze(1)
+            timesteps = (ray_bundle.times[ray_indices] * (self.config.n_timesteps - 1)).round().int().squeeze(1)
         elif 'timesteps' in ray_bundle.metadata:
             timesteps = ray_bundle.metadata['timesteps'][ray_indices].squeeze(1)
         # else:
