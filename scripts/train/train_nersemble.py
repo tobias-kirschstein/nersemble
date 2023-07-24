@@ -20,7 +20,7 @@ from nersemble.nerfstudio.field_components.deformation_field import SE3Deformati
 from nersemble.nerfstudio.field_components.hash_ensemble import HashEnsembleConfig, TCNNHashEncodingConfig
 from nersemble.nerfstudio.models.nersemble_instant_ngp import NeRSembleNGPModelConfig
 
-# from torchinfo import summary
+from torchinfo import summary
 
 # SCENE_BOXES = {
 #     18: [[-1.8, -1.8, -2.5], [1.8, 1.8, 2]],
@@ -85,6 +85,7 @@ def main(
         alpha_thre: float = 1e-2,
         occ_thre: float = 1e-2,
         n_train_rays: int = 8192,
+        grid_levels: int = 1,
 
 ):
     os.environ['WANDB_RUN_GROUP'] = "nersemble"
@@ -155,7 +156,8 @@ def main(
                 occ_thre=occ_thre,
                 early_stop_eps=0,  # Important, otherwise scene may start exploding
                 background_color="white",
-                grid_levels=1,  # Originally, NeRSemble was trained with a single grid, but larger values also work
+                grid_levels=grid_levels,
+                # Originally, NeRSemble was trained with a single grid, but larger values also work
                 disable_scene_contraction=True,  # To ensure scene only exists inside scene box
 
                 # Sequence
@@ -226,7 +228,7 @@ def main(
     trainer = NeRSembleTrainer(config, local_rank, world_size)
     trainer.setup()
 
-    # summary(trainer.pipeline.model)
+    summary(trainer.pipeline.model)
 
     # Important to save config after trainer is created, as the trainer fills in some config values
     config.save_config()
