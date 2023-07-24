@@ -84,7 +84,7 @@ def main(
         cone_angle: float = 0.004,
         alpha_thre: float = 1e-2,
         occ_thre: float = 1e-2,
-        num_train_rays: int = 8192,
+        n_train_rays: int = 8192,
 
 ):
     os.environ['WANDB_RUN_GROUP'] = "nersemble"
@@ -139,7 +139,7 @@ def main(
                     use_view_frustum_culling=False,  # TODO: Not implemented yet
 
                 ),
-                train_num_rays_per_batch=num_train_rays,
+                train_num_rays_per_batch=n_train_rays,
                 eval_num_rays_per_batch=4096,
                 train_num_images_to_sample_from=24,
                 train_num_times_to_repeat_images=20,
