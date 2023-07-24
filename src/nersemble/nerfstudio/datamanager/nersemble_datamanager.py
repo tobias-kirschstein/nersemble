@@ -4,6 +4,7 @@ from typing import Any, Dict, Tuple, Type
 import torch
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig, VanillaDataManager, TDataset
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader
 
 from nersemble.nerfstudio.data.nersemble_pixel_sampler import NeRSemblePixelSampler
 from nersemble.nerfstudio.dataset.nersemble_dataset import NeRSembleInputDataset
@@ -20,6 +21,16 @@ class NeRSembleVanillaDataManagerConfig(VanillaDataManagerConfig):
 
 class NeRSembleVanillaDataManager(VanillaDataManager):
     config: NeRSembleVanillaDataManagerConfig
+
+    def setup_train(self):
+        super().setup_train()
+
+        # For logging train images during evaluation as well
+        self.train_dataloader = RandIndicesEvalDataloader(
+            input_dataset=self.train_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+        )
 
     def create_train_dataset(self) -> NeRSembleInputDataset:
         """Sets up the data loaders for training"""
@@ -72,3 +83,14 @@ class NeRSembleVanillaDataManager(VanillaDataManager):
         self._add_metadata_to_ray_bundle(ray_bundle, batch)
 
         return image_idx, ray_bundle, batch
+
+    def next_train_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        for camera_ray_bundle, batch in self.train_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
+            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
+
+            self._add_metadata_to_ray_bundle(camera_ray_bundle, batch)
+
+            return image_idx, camera_ray_bundle, batch
+
+        raise ValueError("No more train images")

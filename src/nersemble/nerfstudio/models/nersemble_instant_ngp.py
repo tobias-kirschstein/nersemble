@@ -178,7 +178,10 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
         def update_occupancy_grid(step: int):
             self.occupancy_grid.update_every_n_steps(
                 step=step,
-                occ_eval_fn=lambda x: self.field_density_fn(x) * self.config.render_step_size,
+                occ_eval_fn=lambda x: self.field_density_fn(
+                    x,
+                    torch.randint(0, self.config.n_timesteps, (x.shape[0], 1), dtype=torch.int, device=x.device) / (self.config.n_timesteps - 1)
+                ) * self.config.render_step_size,
                 n=16,
                 occ_thre=self.config.occ_thre,
             )
@@ -222,19 +225,14 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
 
     def field_density_fn(self,
                          positions: Shaped[Tensor, "*bs 3"],
-                         times: Optional[Shaped[Tensor, "*bs 1"]] = None) -> Shaped[Tensor, "*bs 1"]:
+                         times: Optional[Shaped[Tensor, "*bs 1"]]) -> Shaped[Tensor, "*bs 1"]:
 
         window_hash_encodings = self.sched_window_hash_encodings.value if self.sched_window_hash_encodings is not None else None
 
         time_codes = None
         if self.time_embedding is not None:
-            # Occupancy grid is time-independent
-            # Hence, we sample random timesteps
-            # The occupancy grid thus models the union over all timesteps
-            # A straight-forward improvement would be to have one occupancy grid per timestep as well (or for keyframes)
-            timesteps = torch.randint(0, self.config.n_timesteps, (positions.shape[0],),
-                                      dtype=torch.int,
-                                      device=positions.device)
+            assert times is not None, "Times need to be provided to NeRSemble's density_fn"
+            timesteps = (times * (self.config.n_timesteps - 1)).int().squeeze(1)
             time_codes = self.time_embedding(timesteps)
 
         return self.field.density_fn(positions,
@@ -452,7 +450,8 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             "ssim": float(ssim),
             "lpips": float(lpips),
             "mse": float(mse),
-            "cam_id": float(batch['cam_ids']),  # cam_ids are necessary for correct image logging in trainer, but has to be float
+            "cam_id": float(batch['cam_ids']),
+            # cam_ids are necessary for correct image logging in trainer, but has to be float
         }  # type: ignore
 
         images_dict = {
@@ -493,7 +492,6 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             metrics_dict["mse_masked"] = float(mse_masked)
 
             images_dict["img_masked"] = combined_rgb_masked
-
 
         return metrics_dict, images_dict
 

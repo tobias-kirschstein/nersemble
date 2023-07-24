@@ -140,6 +140,26 @@ class NeRSembleTrainer(Trainer):
             for image_name, image in images_dict.items():
                 writer.put_image(name=image_group_name + "/" + image_name, image=image, step=step)
 
+            # One train image
+            self.pipeline.model.eval()
+            with torch.no_grad():
+                image_idx, camera_ray_bundle, batch = self.pipeline.datamanager.next_train_image(step)
+                outputs = self.pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                metrics_dict, images_dict = self.pipeline.model.get_image_metrics_and_images(outputs, batch)
+                assert "image_idx" not in metrics_dict
+                metrics_dict["image_idx"] = image_idx
+                assert "num_rays" not in metrics_dict
+                metrics_dict["num_rays"] = len(camera_ray_bundle)
+
+                # Put all eval images on CPU
+                for key in images_dict.keys():
+                    images_dict[key] = images_dict[key].cpu()
+
+            self.pipeline.model.train()
+            group = "Train Images"
+            for image_name, image in images_dict.items():
+                writer.put_image(name=group + "/" + image_name, image=image, step=step)
+
         # all eval images
         if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
