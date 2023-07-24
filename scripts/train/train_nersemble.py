@@ -9,6 +9,7 @@ from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
+from nersemble.data_manager.multi_view_data import NeRSembleDataManager
 from nersemble.model_manager.nersemble import NeRSembleModelFolder
 from nersemble.nerfstudio.config.nersemble_trainer_config import NeRSembleTrainerConfig
 from nersemble.nerfstudio.datamanager.nersemble_datamanager import NeRSembleVanillaDataManagerConfig
@@ -43,6 +44,10 @@ def main(
         /,
         name: Optional[str] = None,
         vis: Literal['viewer', 'wandb'] = 'wandb',
+
+        # Sequence
+        n_timesteps: int = -1,
+        skip_timesteps: int = 1,
 
         # Learning rates
         lr_main: float = 5e-3,
@@ -88,8 +93,11 @@ def main(
 
     # TODO: For some reason Instant NGP only really works if we scale the world coordinate system
     scale_factor = 9
-    n_timesteps = 3
-    skip_timesteps = 100
+    if n_timesteps == -1:
+        data_manager = NeRSembleDataManager(participant_id, sequence_name)
+        n_timesteps = data_manager.get_n_timesteps()
+
+    # TODO: Implement caching for data
 
     if participant_id in SCENE_BOXES:
         scene_box = torch.tensor(SCENE_BOXES[participant_id]) * scale_factor / 9
