@@ -29,12 +29,6 @@ def from_homogenous(v: torch.Tensor) -> torch.Tensor:
 
 
 class SE3WarpingField(nn.Module):
-    """Optimizable temporal deformation using an MLP.
-    Args:
-        mlp_num_layers: Number of layers in distortion MLP
-        mlp_layer_width: Size of hidden layer for the MLP
-        skip_connections: Number of layers for skip connections in the MLP
-    """
 
     def __init__(
             self,
@@ -138,17 +132,25 @@ class SE3DeformationField(nn.Module):
                 ray_samples: RaySamples,
                 warp_code: Optional[torch.Tensor] = None,
                 windows_param: Optional[float] = None) -> RaySamples:
-        # assert ray_samples.timesteps is not None, "Cannot warp samples if no time is given"
         assert ray_samples.frustums.offsets is None or (
                 ray_samples.frustums.offsets == 0).all(), "ray samples have already been warped"
 
         positions = ray_samples.frustums.get_positions()
-        positions = SceneBox.get_normalized_positions(positions, self.aabb)
 
-        warped_p = self.se3_field(positions,
-                                  warp_code=warp_code,
-                                  windows_param=windows_param)
-
-        ray_samples.frustums.set_offsets(warped_p - positions)
+        offsets = self.compute_offsets(positions, warp_code, windows_param)
+        ray_samples.frustums.set_offsets(offsets)
 
         return ray_samples
+
+    def compute_offsets(self,
+                        positions: torch.Tensor,
+                        warp_code: Optional[torch.Tensor] = None,
+                        windows_param: Optional[float] = None):
+        positions_normalized = SceneBox.get_normalized_positions(positions, self.aabb)
+
+        positions_warped = self.se3_field(positions_normalized,
+                                          warp_code=warp_code,
+                                          windows_param=windows_param)
+
+        offsets = positions_warped - positions_normalized
+        return offsets

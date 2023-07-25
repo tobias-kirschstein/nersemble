@@ -64,6 +64,7 @@ class NeRSembleNGPModelConfig(InstantNGPModelConfig, BaseModelConfig):
     # Ray marching
     early_stop_eps: float = 1e-4
     occ_thre: float = 1e-2
+    disable_occupancy_grid: bool = False  # If set, occupancy grid is just plain 1s everywhere
 
     # View Frustum Culling
     use_view_frustum_culling: bool = False
@@ -187,7 +188,8 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
                 step=step,
                 occ_eval_fn=lambda x: self.field_density_fn(
                     x,
-                    torch.randint(0, self.config.n_timesteps, (x.shape[0], 1), dtype=torch.int, device=x.device) / (self.config.n_timesteps - 1)
+                    torch.randint(0, self.config.n_timesteps, (x.shape[0], 1), dtype=torch.int, device=x.device) / (
+                            self.config.n_timesteps - 1)
                 ) * self.config.render_step_size,
                 n=16,
                 occ_thre=self.config.occ_thre,
@@ -234,13 +236,27 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
                          positions: Shaped[Tensor, "*bs 3"],
                          times: Optional[Shaped[Tensor, "*bs 1"]]) -> Shaped[Tensor, "*bs 1"]:
 
+        if self.config.disable_occupancy_grid:
+            return torch.ones((positions.shape[0],), dtype=positions.dtype, device=positions.device)
+
         window_hash_encodings = self.sched_window_hash_encodings.value if self.sched_window_hash_encodings is not None else None
+        window_deform = self.sched_window_deform.value if self.sched_window_deform is not None else None
 
         time_codes = None
+        time_codes_deformation = None
         if self.time_embedding is not None:
             assert times is not None, "Times need to be provided to NeRSemble's density_fn"
             timesteps = (times * (self.config.n_timesteps - 1)).round().int().squeeze(1)
             time_codes = self.time_embedding(timesteps)
+
+            if self.config.use_separate_deformation_time_embedding:
+                time_codes_deformation = self.time_embedding_deformation(timesteps)
+            else:
+                time_codes_deformation = time_codes
+
+        if self.config.use_deformation_field:
+            offsets = self.deformation_field.compute_offsets(positions, time_codes_deformation, window_deform)
+            positions = positions + offsets
 
         return self.field.density_fn(positions,
                                      times,
@@ -248,27 +264,11 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
                                      time_codes=time_codes)
 
     def warp_ray_samples(self, ray_samples: RaySamples, time_codes: Optional[torch.Tensor] = None) -> RaySamples:
-        # window parameters
         window_deform = self.sched_window_deform.value if self.sched_window_deform is not None else None
-
-        # if self.temporal_distortion is not None and not isinstance(self.temporal_distortion, bool) or self.config.use_hash_encoding_ensemble:
-        #
-        #     if ray_samples.timesteps is None:
-        #         # Assume ray_samples come from occupancy grid.
-        #         # We only have one grid to model the whole scene accross time.
-        #         # Hence, we say, only grid cells that are empty for all timesteps should be really empty.
-        #         # Thus, we sample random timesteps for these ray samples
-        #         ray_samples.timesteps = torch.randint(self.config.n_timesteps, (ray_samples.size, 1)).to(
-        #             ray_samples.frustums.origins.device)
 
         if self.deformation_field is not None:
             # Initialize all offsets with 0
             assert ray_samples.frustums.offsets is None, "ray samples have already been warped"
-            ray_samples.frustums.offsets = torch.zeros_like(ray_samples.frustums.origins)
-            # Need to clone here, as directions was created in a no_grad() block
-            # ray_samples.frustums.directions = ray_samples.frustums.directions.clone()
-
-            # time_codes = ray_samples.metadata['time_codes']
 
             # Deform all samples into the latent canonical space
             self.deformation_field(ray_samples, warp_code=time_codes, windows_param=window_deform)

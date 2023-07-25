@@ -81,11 +81,12 @@ def main(
         steps_per_eval_all_images: int = 50000,
 
         # Ray Marching
-        cone_angle: float = 0.004,
+        cone_angle: float = 0,
         alpha_thre: float = 1e-2,
         occ_thre: float = 1e-2,
         n_train_rays: int = 8192,
         grid_levels: int = 1,
+        disable_occupancy_grid: bool = False,
 
         # View Frustum Culling
         use_view_frustum_culling: bool = True,
@@ -145,7 +146,7 @@ def main(
 
                 ),
                 train_num_rays_per_batch=n_train_rays,
-                eval_num_rays_per_batch=4096,
+                eval_num_rays_per_batch=1024,
                 train_num_images_to_sample_from=24,
                 train_num_times_to_repeat_images=20,
             ),
@@ -192,6 +193,7 @@ def main(
                 deformation_field_config=SE3DeformationFieldConfig(
                     warp_code_dim=latent_dim_time_deform,
                 ),
+                disable_occupancy_grid=disable_occupancy_grid,
 
                 # Scheduler
                 window_hash_encodings_begin=window_hash_encodings_begin,

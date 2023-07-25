@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import functools
 import time
+from typing import cast
 
 import torch
 from nerfstudio.engine.callbacks import (
     TrainingCallbackLocation,
 )
-from nerfstudio.engine.trainer import Trainer
-from nerfstudio.utils import writer
+from nerfstudio.engine.trainer import Trainer, TRAIN_INTERATION_OUTPUT
+from nerfstudio.utils import writer, profiler
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
@@ -164,3 +165,42 @@ class NeRSembleTrainer(Trainer):
         if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
             writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
+
+    @profiler.time_function
+    def train_iteration(self, step: int) -> TRAIN_INTERATION_OUTPUT:
+        """NeRSemble overwrites train_iteration() to
+         - Set cache_enabled=False for torch.autocast
+            This is important, as otherwise the deformation field does not get gradients since it is first invoked
+            during volumetric ray sampling / in the occupancy grid update, both of which are inside no_grad() blocks.
+            If the cache is enabled, autocast will cache the network weights in the status of their first invocation,
+            which will be with requires_grad in that case -> no gradients
+        """
+
+        self.optimizers.zero_grad_all()
+        cpu_or_cuda_str: str = self.device.split(":")[0]
+
+        with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision, cache_enabled=False):
+            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
+            loss = functools.reduce(torch.add, loss_dict.values())
+        self.grad_scaler.scale(loss).backward()  # type: ignore
+        self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+
+        if self.config.log_gradients:
+            total_grad = 0
+            for tag, value in self.pipeline.model.named_parameters():
+                assert tag != "Total"
+                if value.grad is not None:
+                    grad = value.grad.norm()
+                    metrics_dict[f"Gradients/{tag}"] = grad
+                    total_grad += grad
+
+            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)
+
+        scale = self.grad_scaler.get_scale()
+        self.grad_scaler.update()
+        # If the gradient scaler is decreased, no optimization step is performed so we should not step the scheduler.
+        if scale <= self.grad_scaler.get_scale():
+            self.optimizers.scheduler_step_all(step)
+
+        # Merging loss and metrics dict into a single output.
+        return loss, loss_dict, metrics_dict
