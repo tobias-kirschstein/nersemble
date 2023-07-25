@@ -22,6 +22,8 @@ from nersemble.nerfstudio.models.nersemble_instant_ngp import NeRSembleNGPModelC
 
 from torchinfo import summary
 
+# [left, forward, down], [right, backward, up]
+# [[-2.5, -2, -2.5], [2.5, 3, 2]]]
 # SCENE_BOXES = {
 #     18: [[-1.8, -1.8, -2.5], [1.8, 1.8, 2]],
 #     30: [[-2.5, -0.5, -2.5], [2.2, 3.2, 2]],
@@ -34,7 +36,13 @@ from torchinfo import summary
 
 # Due to the newer align_poses(), the scene boxes have to be adapted
 SCENE_BOXES = {
+    18: [[-1.8, -2.3, -2.5], [1.8, 1.3, 2]],
     30: [[-2.5, -1.8, -2.5], [2.2, 1.8, 2]],
+    38: [[-1.8, -1.5, -2.5], [2.2, 2.2, 2]],
+    85: [[-2, -1.8, -2.5], [2.2, 1.7, 2]],
+    97: [[-2.2, -2.8, -2.5], [2.2, 2.2, 2]],
+    124: [[-2.2, -2.5, -2.5], [2.2, 1.5, 2]],
+    175: [[-2.3, -2, -2.5], [2, 2, 2]],
 }
 
 
@@ -84,7 +92,7 @@ def main(
         cone_angle: float = 0,
         alpha_thre: float = 1e-2,
         occ_thre: float = 1e-2,
-        n_train_rays: int = 8192,
+        n_train_rays: int = 4096,
         grid_levels: int = 1,
         disable_occupancy_grid: bool = False,
 
