@@ -54,6 +54,7 @@ def main(
         vis: Literal['viewer', 'wandb'] = 'wandb',
 
         # Sequence
+        start_timestep: int = 0,
         n_timesteps: int = -1,
         skip_timesteps: int = 1,
 
@@ -144,6 +145,7 @@ def main(
                 dataparser=NeRSembleDataParserConfig(
                     participant_id=participant_id,
                     sequence_name=sequence_name,
+                    start_timestep=start_timestep,
                     n_timesteps=n_timesteps,
                     skip_timesteps=skip_timesteps,
                     scale_factor=scale_factor,
