@@ -65,6 +65,7 @@ class NeRSembleNGPModelConfig(InstantNGPModelConfig, BaseModelConfig):
     early_stop_eps: float = 1e-4
     occ_thre: float = 1e-2
     disable_occupancy_grid: bool = False  # If set, occupancy grid is just plain 1s everywhere
+    max_n_samples_per_batch: int = -1  # If the number of ray samples exceeds this value, they will be put in chunks through the model. Smaller values lower speed, but reduce GPU memory consumption
 
     # View Frustum Culling
     use_view_frustum_culling: bool = False
@@ -99,12 +100,14 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             use_hash_ensemble=self.config.use_hash_ensemble,
             hash_ensemble_config=self.config.hash_ensemble_config,
             use_appearance_embedding=self.config.use_appearance_embedding,
+            max_n_samples_per_batch=self.config.max_n_samples_per_batch
         )
 
         # Deformation Field
         self.deformation_field = None
         if self.config.use_deformation_field:
-            self.deformation_field = SE3DeformationField(self.scene_box.aabb, self.config.deformation_field_config)
+            self.deformation_field = SE3DeformationField(self.scene_box.aabb, self.config.deformation_field_config,
+                                                         max_n_samples_per_batch=self.config.max_n_samples_per_batch)
 
         # Time embedding
         self.time_embedding = None
@@ -171,14 +174,6 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
                 begin_step=self.config.window_hash_encodings_begin,
                 end_step=self.config.window_hash_encodings_end,
             )
-
-        # # Viewer timestep slider
-        # self.timestep_slider = ViewerSlider(name="Timestep",
-        #                                     default_value=0,
-        #                                     min_value=0,
-        #                                     max_value=self.config.n_timesteps - 1,
-        #                                     step=0 if self.config.n_timesteps == 1 else 1,
-        # )
 
     def get_training_callbacks(self, training_callback_attributes: TrainingCallbackAttributes) -> List[
         TrainingCallback]:
@@ -258,10 +253,12 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             offsets = self.deformation_field.compute_offsets(positions, time_codes_deformation, window_deform)
             positions = positions + offsets
 
-        return self.field.density_fn(positions,
+        densities = self.field.density_fn(positions,
                                      times,
                                      window_hash_encodings=window_hash_encodings,
                                      time_codes=time_codes)
+
+        return densities
 
     def warp_ray_samples(self, ray_samples: RaySamples, time_codes: Optional[torch.Tensor] = None) -> RaySamples:
         window_deform = self.sched_window_deform.value if self.sched_window_deform is not None else None
@@ -301,11 +298,6 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             timesteps = (ray_bundle.times[ray_indices] * (self.config.n_timesteps - 1)).round().int().squeeze(1)
         elif 'timesteps' in ray_bundle.metadata:
             timesteps = ray_bundle.metadata['timesteps'][ray_indices].squeeze(1)
-        # else:
-        #     # Ray Bundle probably comes from viewer and does not have timesteps
-        #     assert not self.training
-        #     timesteps = torch.ones((len(ray_samples)), dtype=torch.int, device=ray_samples.frustums.starts.device)
-        #     timesteps = timesteps * self.timestep_slider.value
 
         time_codes_deformation = None
         if self.time_embedding is not None:
@@ -515,3 +507,5 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
             param_groups["deformation_field"] = list(self.deformation_field.parameters())
 
         return param_groups
+
+

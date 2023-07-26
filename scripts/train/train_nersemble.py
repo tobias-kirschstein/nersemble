@@ -96,6 +96,7 @@ def main(
         n_train_rays: int = 4096,
         grid_levels: int = 1,
         disable_occupancy_grid: bool = False,
+        max_n_samples_per_batch: int = -1,
 
         # View Frustum Culling
         use_view_frustum_culling: bool = True,
@@ -121,6 +122,7 @@ def main(
         scene_box = torch.tensor(SCENE_BOXES[participant_id]) * scale_factor / 9
     else:
         # Default scene box
+        # [[left, head front, down], [right, head back, up]]
         scene_box = torch.tensor([[-2.5, -2, -2.5], [2.5, 3, 2]]) * scale_factor / 9
 
     config = NeRSembleTrainerConfig(
@@ -149,10 +151,7 @@ def main(
                     n_timesteps=n_timesteps,
                     skip_timesteps=skip_timesteps,
                     scale_factor=scale_factor,
-                    # [[left, head front, down], [right, head back, up]]
                     scene_box=scene_box,
-
-                    use_view_frustum_culling=False,  # TODO: Not implemented yet
 
                 ),
                 train_num_rays_per_batch=n_train_rays,
@@ -162,11 +161,11 @@ def main(
             ),
 
             model=NeRSembleNGPModelConfig(
+                # Ray Marching
                 render_step_size=0.011 * scale_factor / 9.,  # TODO: Is render_step_size correct?
                 near_plane=0.2 * scale_factor / 9.,
                 far_plane=1e3 * scale_factor / 9.,
                 cone_angle=cone_angle,
-                # cone_angle=2e-3, # TODO: Setting to 0 leads to a lot of ray samples in beginning
                 alpha_thre=alpha_thre,  # TODO: Do lower values help? It seems like the occupancy grid is too aggressive
                 occ_thre=occ_thre,
                 early_stop_eps=0,  # Important, otherwise scene may start exploding
@@ -174,6 +173,7 @@ def main(
                 grid_levels=grid_levels,
                 # Originally, NeRSemble was trained with a single grid, but larger values also work
                 disable_scene_contraction=True,  # To ensure scene only exists inside scene box
+                max_n_samples_per_batch=-1 if max_n_samples_per_batch == -1 else 2 ** max_n_samples_per_batch,
 
                 # Sequence
                 n_timesteps=n_timesteps,
@@ -181,12 +181,12 @@ def main(
 
                 # Losses
                 use_masked_rgb_loss=True,
+                alpha_mask_threshold=0,
                 lambda_alpha_loss=lambda_alpha_loss,
                 lambda_near_loss=lambda_near_loss,
                 lambda_empty_loss=lambda_empty_loss,
                 lambda_depth_loss=lambda_depth_loss,
                 lambda_dist_loss=lambda_dist_loss,
-                alpha_mask_threshold=0,
 
                 # Hash Ensemble
                 use_hash_ensemble=use_hash_ensemble,

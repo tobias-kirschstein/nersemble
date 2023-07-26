@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Optional, Tuple, Dict
 
 import numpy as np
@@ -23,6 +24,7 @@ from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 from torch import Tensor
 
 from nersemble.nerfstudio.field_components.hash_ensemble import HashEnsembleConfig, HashEnsemble
+from nersemble.util.chunker import chunked
 
 
 class NeRSembleNeRFactoField(TCNNNerfactoField):
@@ -56,6 +58,7 @@ class NeRSembleNeRFactoField(TCNNNerfactoField):
             spherical_harmonics_degree: int = 4,
             use_hash_ensemble: bool = False,
             hash_ensemble_config: Optional[HashEnsembleConfig] = None,
+            max_n_samples_per_batch: int = -1
     ) -> None:
         # "Jump" over super class __init__() and directly call super super class __init__()
         super(TCNNNerfactoField, self).__init__()
@@ -82,6 +85,7 @@ class NeRSembleNeRFactoField(TCNNNerfactoField):
 
         # NeRSemble additions
         self.use_hash_ensemble = use_hash_ensemble
+        self.max_n_samples_per_batch = max_n_samples_per_batch
 
         base_res: int = 16
         features_per_level: int = 2
@@ -243,7 +247,7 @@ class NeRSembleNeRFactoField(TCNNNerfactoField):
         density, _ = self.get_density(ray_samples, window_hash_encodings=window_hash_encodings)
         return density
 
-    def get_density(self, ray_samples: RaySamples, window_hash_encodings) -> Tuple[Tensor, Tensor]:
+    def get_density(self, ray_samples: RaySamples, window_hash_encodings: float) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -252,36 +256,49 @@ class NeRSembleNeRFactoField(TCNNNerfactoField):
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
 
-        # Make sure the tcnn gets inputs between 0 and 1.
-        selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
-        positions = positions * selector[..., None]
-        self._sample_locations = positions
-        if not self._sample_locations.requires_grad:
-            self._sample_locations.requires_grad = True
-        positions_flat = positions.view(-1, 3)
+        max_chunk_size = len(positions) if self.max_n_samples_per_batch == -1 else self.max_n_samples_per_batch
 
-        # Hash Ensemble encoding
-        if self.use_hash_ensemble:
-            time_codes = ray_samples.metadata['time_codes']
+        time_codes = ray_samples.metadata['time_codes'] if 'time_codes' in ray_samples.metadata else None
 
-            # Run 3d points through hash ensemble to get blended meaningful spatial features for base MLP to decode
-            base_inputs = self.hash_ensemble(positions_flat,
-                                             conditioning_code=time_codes,
-                                             window_hash_encodings=window_hash_encodings,
-                                             )
-        else:
-            base_inputs = positions_flat
+        densities = []
+        base_mlp_outs = []
+        for positions_chunked, time_codes_chunked in chunked(max_chunk_size, positions, time_codes):
 
-        h = self.mlp_base(base_inputs).view(*ray_samples.frustums.shape, -1)
-        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
-        self._density_before_activation = density_before_activation
+            # Make sure the tcnn gets inputs between 0 and 1.
+            selector = ((positions_chunked > 0.0) & (positions_chunked < 1.0)).all(dim=-1)
+            positions_chunked = positions_chunked * selector[..., None]
+            self._sample_locations = positions_chunked
+            if not self._sample_locations.requires_grad:
+                self._sample_locations.requires_grad = True
+            positions_flat = positions_chunked.view(-1, 3)
 
-        # Rectifying the density with an exponential is much more stable than a ReLU or
-        # softplus, because it enables high post-activation (float32) density outputs
-        # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation.to(positions))
-        density = density * selector[..., None]
-        return density, base_mlp_out
+            # Hash Ensemble encoding
+            if self.use_hash_ensemble:
+                # Run 3d points through hash ensemble to get blended meaningful spatial features for base MLP to decode
+                base_inputs = self.hash_ensemble(positions_flat,
+                                                 conditioning_code=time_codes_chunked,
+                                                 window_hash_encodings=window_hash_encodings,
+                                                 )
+            else:
+                base_inputs = positions_flat
+
+            h = self.mlp_base(base_inputs).view(*positions_chunked.shape[:-1], -1)
+            density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+            self._density_before_activation = density_before_activation
+
+            # Rectifying the density with an exponential is much more stable than a ReLU or
+            # softplus, because it enables high post-activation (float32) density outputs
+            # from smaller internal (float16) parameters.
+            density = trunc_exp(density_before_activation.to(positions_chunked))
+            density = density * selector[..., None]
+
+            densities.append(density)
+            base_mlp_outs.append(base_mlp_out)
+
+        densities = torch.cat(densities, dim=0)
+        base_mlp_outs = torch.cat(base_mlp_outs, dim=0)
+
+        return densities, base_mlp_outs
 
     def get_outputs(
             self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
@@ -289,72 +306,79 @@ class NeRSembleNeRFactoField(TCNNNerfactoField):
         # Only change to nerfstudio is adding a toggle for appearance dim
 
         assert density_embedding is not None
-        outputs = {}
+
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
-        d = self.direction_encoding(directions_flat)
+        positions = ray_samples.frustums.get_positions()
 
-        outputs_shape = ray_samples.frustums.directions.shape[:-1]
+        max_chunk_size = len(ray_samples) if self.max_n_samples_per_batch == -1 else self.max_n_samples_per_batch
 
-        # appearance
-        embedded_appearance = None
-        if self.use_appearance_embedding:
-            if self.training:
-                embedded_appearance = self.embedding_appearance(camera_indices)
-            else:
-                if self.use_average_appearance_embedding:
-                    embedded_appearance = torch.ones(
-                        (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-                    ) * self.embedding_appearance.mean(dim=0)
+        outputs = defaultdict(list)
+        for directions_chunked, camera_indices_chunked, density_embedding_chunked, positions_chunked in chunked(max_chunk_size, directions_flat, camera_indices, density_embedding, positions):
+            outputs_shape = directions_chunked.shape[:-1]
+            d = self.direction_encoding(directions_chunked)
+
+            # appearance
+            embedded_appearance = None
+            if self.use_appearance_embedding:
+                if self.training:
+                    embedded_appearance = self.embedding_appearance(camera_indices_chunked)
                 else:
-                    embedded_appearance = torch.zeros(
-                        (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-                    )
+                    if self.use_average_appearance_embedding:
+                        embedded_appearance = torch.ones(
+                            (*camera_indices_chunked.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                        ) * self.embedding_appearance.mean(dim=0)
+                    else:
+                        embedded_appearance = torch.zeros(
+                            (*camera_indices_chunked.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                        )
 
-        # transients
-        if self.use_transient_embedding and self.training:
-            embedded_transient = self.embedding_transient(camera_indices)
-            transient_input = torch.cat(
-                [
-                    density_embedding.view(-1, self.geo_feat_dim),
-                    embedded_transient.view(-1, self.transient_embedding_dim),
-                ],
-                dim=-1,
-            )
-            x = self.mlp_transient(transient_input).view(*outputs_shape, -1).to(directions)
-            outputs[FieldHeadNames.UNCERTAINTY] = self.field_head_transient_uncertainty(x)
-            outputs[FieldHeadNames.TRANSIENT_RGB] = self.field_head_transient_rgb(x)
-            outputs[FieldHeadNames.TRANSIENT_DENSITY] = self.field_head_transient_density(x)
+            # transients
+            if self.use_transient_embedding and self.training:
+                embedded_transient = self.embedding_transient(camera_indices_chunked)
+                transient_input = torch.cat(
+                    [
+                        density_embedding_chunked.view(-1, self.geo_feat_dim),
+                        embedded_transient.view(-1, self.transient_embedding_dim),
+                    ],
+                    dim=-1,
+                )
+                x = self.mlp_transient(transient_input).view(*outputs_shape, -1).to(directions)
+                outputs[FieldHeadNames.UNCERTAINTY].append(self.field_head_transient_uncertainty(x))
+                outputs[FieldHeadNames.TRANSIENT_RGB].append(self.field_head_transient_rgb(x))
+                outputs[FieldHeadNames.TRANSIENT_DENSITY].append(self.field_head_transient_density(x))
 
-        # semantics
-        if self.use_semantics:
-            semantics_input = density_embedding.view(-1, self.geo_feat_dim)
-            if not self.pass_semantic_gradients:
-                semantics_input = semantics_input.detach()
+            # semantics
+            if self.use_semantics:
+                semantics_input = density_embedding_chunked.view(-1, self.geo_feat_dim)
+                if not self.pass_semantic_gradients:
+                    semantics_input = semantics_input.detach()
 
-            x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
-            outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
+                x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
+                outputs[FieldHeadNames.SEMANTICS].append(self.field_head_semantics(x))
 
-        # predicted normals
-        if self.use_pred_normals:
-            positions = ray_samples.frustums.get_positions()
+            # predicted normals
+            if self.use_pred_normals:
+                positions_flat = self.position_encoding(positions_chunked.view(-1, 3))
+                pred_normals_inp = torch.cat([positions_flat, density_embedding_chunked.view(-1, self.geo_feat_dim)], dim=-1)
 
-            positions_flat = self.position_encoding(positions.view(-1, 3))
-            pred_normals_inp = torch.cat([positions_flat, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+                x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
+                outputs[FieldHeadNames.PRED_NORMALS].append(self.field_head_pred_normals(x))
 
-            x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
-            outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
+            rgb_inputs = [d, density_embedding_chunked.view(-1, self.geo_feat_dim)]
+            if self.use_appearance_embedding:
+                rgb_inputs.append(embedded_appearance)
 
-        rgb_inputs = [d, density_embedding.view(-1, self.geo_feat_dim)]
-        if self.use_appearance_embedding:
-            rgb_inputs.append(embedded_appearance)
+            h = torch.cat(rgb_inputs, dim=-1)
 
-        h = torch.cat(rgb_inputs, dim=-1)
-        rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
-        outputs.update({FieldHeadNames.RGB: rgb})
+            rgb_chunked = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
+            outputs[FieldHeadNames.RGB].append(rgb_chunked)
+
+        for key, chunked_output in outputs.items():
+            outputs[key] = torch.cat(chunked_output, dim=0)
 
         return outputs
 

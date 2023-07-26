@@ -8,6 +8,7 @@ from nerfstudio.field_components import MLP
 from torch import nn
 
 from nersemble.nerfstudio.field_components.windowed_nerf_encoding import WindowedNeRFEncoding
+from nersemble.util.chunker import chunked
 from nersemble.util.pytorch3d import se3_exp_map
 
 
@@ -119,7 +120,8 @@ class SE3DeformationField(nn.Module):
 
     def __init__(self,
                  aabb: torch.Tensor,
-                 deformation_field_config: SE3DeformationFieldConfig
+                 deformation_field_config: SE3DeformationFieldConfig,
+                 max_n_samples_per_batch: int = -1,
                  ):
         super(SE3DeformationField, self).__init__()
 
@@ -127,6 +129,7 @@ class SE3DeformationField(nn.Module):
         self.aabb = nn.Parameter(aabb, requires_grad=False)
 
         self.se3_field = SE3WarpingField(deformation_field_config)
+        self.max_n_samples_per_batch = max_n_samples_per_batch
 
     def forward(self,
                 ray_samples: RaySamples,
@@ -146,11 +149,18 @@ class SE3DeformationField(nn.Module):
                         positions: torch.Tensor,
                         warp_code: Optional[torch.Tensor] = None,
                         windows_param: Optional[float] = None):
-        positions_normalized = SceneBox.get_normalized_positions(positions, self.aabb)
+        max_chunk_size = len(positions) if self.max_n_samples_per_batch == -1 else self.max_n_samples_per_batch
 
-        positions_warped = self.se3_field(positions_normalized,
-                                          warp_code=warp_code,
-                                          windows_param=windows_param)
+        offsets = []
+        for positions_chunked, warp_code_chunked in chunked(max_chunk_size, positions, warp_code):
+            positions_normalized = SceneBox.get_normalized_positions(positions_chunked, self.aabb)
 
-        offsets = positions_warped - positions_normalized
+            positions_warped = self.se3_field(positions_normalized,
+                                              warp_code=warp_code_chunked,
+                                              windows_param=windows_param)
+
+            offsets_chunked = positions_warped - positions_normalized
+            offsets.append(offsets_chunked)
+
+        offsets = torch.cat(offsets, dim=0)
         return offsets
