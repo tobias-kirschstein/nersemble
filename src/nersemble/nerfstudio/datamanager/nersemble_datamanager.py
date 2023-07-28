@@ -19,6 +19,9 @@ ADDITIONAL_METADATA = ["depth_map", "timesteps", "cam_ids"]
 class NeRSembleVanillaDataManagerConfig(VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: NeRSembleVanillaDataManager)
 
+    max_cached_items: int = -1  # How many images will at most be held in RAM
+    use_cache_compression: bool = False  # Stores images as uint8 instead of float in RAM to save space (May be lossy!)
+
 
 class NeRSembleVanillaDataManager(VanillaDataManager):
     config: NeRSembleVanillaDataManagerConfig
@@ -39,6 +42,8 @@ class NeRSembleVanillaDataManager(VanillaDataManager):
         train_dataset = NeRSembleInputDataset(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
+            max_cached_items=self.config.max_cached_items,
+            use_cache_compression=self.config.use_cache_compression
         )
         # Communicate camera frustums to model
         train_dataset.metadata["camera_frustums"] = self.train_dataparser_outputs.camera_frustums

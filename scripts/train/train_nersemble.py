@@ -158,6 +158,8 @@ def main(
                 eval_num_rays_per_batch=1024,
                 train_num_images_to_sample_from=24,
                 train_num_times_to_repeat_images=20,
+                use_cache_compression=False,
+                max_cached_items=10000,  # 10k should be roughly 200GB
             ),
 
             model=NeRSembleNGPModelConfig(

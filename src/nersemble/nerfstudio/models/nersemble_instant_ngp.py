@@ -65,7 +65,10 @@ class NeRSembleNGPModelConfig(InstantNGPModelConfig, BaseModelConfig):
     early_stop_eps: float = 1e-4
     occ_thre: float = 1e-2
     disable_occupancy_grid: bool = False  # If set, occupancy grid is just plain 1s everywhere
+    occupancy_grid_ema_decay: float = 0.95
+    occupancy_grid_warmup_steps: int = 256
     max_n_samples_per_batch: int = -1  # If the number of ray samples exceeds this value, they will be put in chunks through the model. Smaller values lower speed, but reduce GPU memory consumption
+
 
     # View Frustum Culling
     use_view_frustum_culling: bool = False
@@ -188,6 +191,8 @@ class NeRSembleNGPModel(NGPModel, BaseModel):
                 ) * self.config.render_step_size,
                 n=16,
                 occ_thre=self.config.occ_thre,
+                ema_decay=self.config.occupancy_grid_ema_decay,
+                warmup_steps=self.config.occupancy_grid_warmup_steps
             )
 
         callbacks = [
