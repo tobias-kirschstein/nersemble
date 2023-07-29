@@ -119,6 +119,22 @@ class NeRSembleDataParserConfig(DataParserConfig):
 
         return timesteps
 
+    def original_timestep_to_time(self, timestep: int, split: str = 'train') -> float:
+        original_timesteps = self.get_timestep_to_original_mapping(self.n_timesteps, split=split)
+        min_timestep = min(original_timesteps)
+        max_timestep = max(original_timesteps)
+        time = (timestep - min_timestep) / (max_timestep - min_timestep) if timestep > min_timestep else 0
+
+        return time
+
+    def time_to_original_timestep(self, time: float, split: str ='train') -> int:
+        original_timesteps = self.get_timestep_to_original_mapping(self.n_timesteps, split=split)
+        min_timestep = min(original_timesteps)
+        max_timestep = max(original_timesteps)
+
+        timestep = round(time * (max_timestep - min_timestep)) + min_timestep
+        return timestep
+
 class NeRSembleDataParser(DataParser):
     config: NeRSembleDataParserConfig
     includes_time: bool = True  # Tells the viewer that the "times" field for ray_bundles can be used -> dynamics
@@ -334,11 +350,6 @@ class NeRSembleDataParser(DataParser):
                 "kwargs": dict(split=split)
             }
 
-        # outputs.metadata["timesteps"] = {
-        #     "func": lambda image_idx, split: {"timesteps": self.config.image_idx_to_timestep(image_idx, split=split)},
-        #     "kwargs": dict(split=split)
-        # }
-
         outputs.metadata["cam_ids"] = {
             "func": lambda image_idx, split: {"cam_ids": self.config.image_idx_to_cam_id(image_idx, split=split)},
             "kwargs": dict(split=split)
@@ -371,11 +382,9 @@ class NeRSembleDataParser(DataParser):
         alpha_map = np.asarray(alpha_map)
 
         alpha_map = np.expand_dims(alpha_map, 2)
-        mask = (alpha_map > self.config.alpha_map_threshold).astype(bool)
 
         return {
             "alpha_map": alpha_map,
-            # "mask": mask  # TODO: Presence of mask causes a fully gray reconstruction with background not supervised
         }
 
     def _load_depth_map(self, image_idx: int, split: str = 'train') -> Dict[str, np.ndarray]:

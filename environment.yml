@@ -41,3 +41,5 @@ dependencies:
 
     # Misc
     - environs
+    - pyfvvdp
+    - connected-components-3d

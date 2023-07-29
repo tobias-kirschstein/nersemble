@@ -168,23 +168,6 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
 
         return evaluations
 
-    def get_rgb_channel_name(self) -> str:
-        return "rgb"
-
-    def get_metric_name_mapping(self) -> Dict[str, Optional[str]]:
-        return {
-            "lpips": "lpips",
-            "mse": "mse",
-            "psnr": "psnr",
-            "ssim": "ssim",
-
-            # Masked versions of Metrics
-            "lpips_masked": "lpips_masked",
-            "mse_masked": "mse_masked",
-            "psnr_masked": "psnr_masked",
-            "ssim_masked": "ssim_masked",
-        }
-
     # ==========================================================
     # Paths
     # ==========================================================
@@ -222,13 +205,7 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
     def get_evaluation_result_path(self,
                                    checkpoint: int = -1,
                                    name: Optional[str] = None) -> str:
-        if name is not None:
-            if "evaluation_result" in name:
-                return f"{self.get_evaluation_folder(checkpoint)}/{name}.json"
-            else:
-                return f"{self.get_evaluation_folder(checkpoint)}/evaluation_result_{name}.json"
-        else:
-            return f"{self.get_evaluation_folder(checkpoint)}/evaluation_result.json"
+        return f"{self.get_evaluation_folder(checkpoint, name=name)}/evaluation_result.json"
 
 
 class NeRSembleBaseModelFolder(ModelFolder[_ModelManagerType]):

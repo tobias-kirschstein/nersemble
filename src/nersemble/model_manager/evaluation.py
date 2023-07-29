@@ -22,4 +22,4 @@ class NVSEvaluationMetricsBundle(Config):
 @dataclass
 class NVSEvaluationResult(Config):
     mean: NVSEvaluationMetricsBundle
-    per_cam: Dict[int, NVSEvaluationMetricsBundle]
+    per_cam: Dict[str, NVSEvaluationMetricsBundle]
