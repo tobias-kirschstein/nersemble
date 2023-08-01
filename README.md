@@ -124,3 +124,28 @@ From a trained model `NERS-XXX`, a circular trajectory (4s) may be rendered via:
 python scripts/render/render_nersemble.py NERS-XXX
 ```
 The resulting `.mp4` file is stored in `NERSEMBLE_RENDERS_PATH`.
+
+<hr>
+
+If you find our code, dataset or paper useful, please consider citing
+```json
+@article{kirschstein2023nersemble,
+    author = {Kirschstein, Tobias and Qian, Shenhan and Giebenhain, Simon and Walter, Tim and Nie\ss{}ner, Matthias},
+    title = {NeRSemble: Multi-View Radiance Field Reconstruction of Human Heads},
+    year = {2023},
+    issue_date = {August 2023},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {42},
+    number = {4},
+    issn = {0730-0301},
+    url = {https://doi.org/10.1145/3592455},
+    doi = {10.1145/3592455},
+    journal = {ACM Trans. Graph.},
+    month = {jul},
+    articleno = {161},
+    numpages = {14},
+}
+```
+
+Contact [Tobias Kirschstein](mailto:tobias.kirschstein@tum.de) for questions, comments and reporting bugs, or open a GitHub issue.
