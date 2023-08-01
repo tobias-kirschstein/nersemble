@@ -84,6 +84,8 @@ def main(
         # Deformation Field
         use_deformation_field: bool = True,
         latent_dim_time_deform: int = 128,
+        mlp_num_layers: int = 6,
+        mlp_layer_width: int = 128,
 
         # Logging
         steps_per_eval_image: int = 20000,
@@ -205,6 +207,8 @@ def main(
                 use_separate_deformation_time_embedding=True,
                 deformation_field_config=SE3DeformationFieldConfig(
                     warp_code_dim=latent_dim_time_deform,
+                    mlp_num_layers=mlp_num_layers,
+                    mlp_layer_width=mlp_layer_width,
                 ),
                 disable_occupancy_grid=disable_occupancy_grid,
 

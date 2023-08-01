@@ -41,7 +41,7 @@ def main(run_name: str,
          n_rays_eval: int = 2 ** 13,
          max_eval_timesteps: int = 15,
          skip_timesteps: Optional[int] = None,
-         use_occupancy_grid_filtering: bool = False,
+         use_occupancy_grid_filtering: bool = True,
          occupancy_grid_filtering_threshold: float = 0.05,
          occupancy_grid_filtering_sigma_erosion: int = 7,
          ):
