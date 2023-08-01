@@ -128,7 +128,7 @@ The resulting `.mp4` file is stored in `NERSEMBLE_RENDERS_PATH`.
 <hr>
 
 If you find our code, dataset or paper useful, please consider citing
-```json
+```bibtex
 @article{kirschstein2023nersemble,
     author = {Kirschstein, Tobias and Qian, Shenhan and Giebenhain, Simon and Walter, Tim and Nie\ss{}ner, Matthias},
     title = {NeRSemble: Multi-View Radiance Field Reconstruction of Human Heads},
