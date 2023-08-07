@@ -164,7 +164,8 @@ class NeRSembleDataManager:
 
     def get_depth_map_path(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> str:
         serial = self.cam_id_to_serial(cam_id_or_serial)
-        return f"{self.get_depth_maps_folder(timestep)}/cam_{serial}.npz"
+        # return f"{self.get_depth_maps_folder(timestep)}/cam_{serial}.npz"
+        return f"{self.get_depth_maps_folder(timestep)}/cam_{serial}.png"
     #
     # def get_consistency_graph_path(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> str:
     #     serial = self.cam_id_to_serial(cam_id_or_serial)
