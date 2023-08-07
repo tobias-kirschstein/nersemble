@@ -53,7 +53,7 @@ class NeRSembleDataParserConfig(DataParserConfig):
     # Whether to load the background images for foreground/background segmentation
     foreground_only: bool = True
     use_depth_maps: bool = implicit(False)  # Whether to load depth maps (Should be set to True if depth loss is active)
-    depth_min_consistency: int = 3  # Only use computed depth values for pixels that are seen by at least that many cameras
+    # depth_min_consistency: int = 3  # Only use computed depth values for pixels that are seen by at least that many cameras
     use_color_correction: bool = True
     use_alpha_maps: bool = implicit(False)  # Whether to load alpha maps (Should be set to True if alpha loss is active)
     alpha_channel_color: Literal['black', 'white'] = 'white'  # Images for NeRF will be alpha blended with that color
@@ -408,8 +408,8 @@ class NeRSembleDataParser(DataParser):
             depth_map = self._data_manager.load_depth_map(original_timestep, serial)
 
             # Consistency filtering
-            consistency_graph = self._data_manager.load_consistency_graph(original_timestep, serial)
-            depth_map[consistency_graph < self.config.depth_min_consistency] = 0
+            # consistency_graph = self._data_manager.load_consistency_graph(original_timestep, serial)
+            # depth_map[consistency_graph < self.config.depth_min_consistency] = 0
 
             image = Image.fromarray(depth_map)
             downsampled_size = (int(image.size[0] / self.config.downscale_factor),

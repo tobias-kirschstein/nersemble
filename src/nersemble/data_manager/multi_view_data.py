@@ -10,6 +10,7 @@ from elias.util import load_json, load_img
 
 from nersemble.constants import SERIALS
 from nersemble.env import NERSEMBLE_DATA_PATH
+from nersemble.util.quantization import DepthQuantizer
 
 CAM_ID_SERIAL_TYPE = Union[str, int]
 
@@ -43,16 +44,11 @@ class NeRSembleDataManager:
          │   │       │   │   ├── cam_220700191.png              #
          │   │       │   │   :                                  # alpha maps for background removal
          │   │       │   │   └── cam_222200049.png              #
-         │   │       │   ├── colmap
-         │   │       │       ├── depth_maps_geometric
-         │   │       │       │   └── 12
-         │   │       │       │       ├── cam_220700191.npz      #
-         │   │       │       │       :                          # depth maps
-         │   │       │       │       └── cam_222200049.npz      #
-         │   │       │       └─── consistency_graphs
+         │   │       │   └── colmap
+         │   │       │       └── depth_maps_compressed
          │   │       │           └── 12
          │   │       │               ├── cam_220700191.npz      #
-         │   │       │               :                          # consistency graphs
+         │   │       │               :                          # depth maps
          │   │       │               └── cam_222200049.npz      #
          │   │       ├── frame_00001
          │   │       │   :
@@ -107,11 +103,15 @@ class NeRSembleDataManager:
 
     def load_depth_map(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> np.ndarray:
         depth_map_path = self.get_depth_map_path(timestep, cam_id_or_serial)
-        return np.load(depth_map_path)['depth_map']
 
-    def load_consistency_graph(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> np.ndarray:
-        consistency_graph_path = self.get_consistency_graph_path(timestep, cam_id_or_serial)
-        return np.load(consistency_graph_path)['consistency_graph']
+        depth_quantizer = DepthQuantizer()
+        return depth_quantizer.decode(load_img(depth_map_path))
+
+        # return np.load(depth_map_path)['depth_map']
+
+    # def load_consistency_graph(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> np.ndarray:
+    #     consistency_graph_path = self.get_consistency_graph_path(timestep, cam_id_or_serial)
+    #     return np.load(consistency_graph_path)['consistency_graph']
 
     # ==========================================================
     # Data structure
@@ -129,22 +129,20 @@ class NeRSembleDataManager:
         return f"{self.get_sequence_folder()}/frame_{timestep:05d}"
 
     def get_images_folder(self, timestep: int) -> str:
-        # return f"{self.get_timestep_folder(timestep)}/images-2x"
-        return f"{self.get_timestep_folder(timestep)}/images-2x-73fps"  # TODO: Change
+        return f"{self.get_timestep_folder(timestep)}/images-2x-73fps"
 
     def get_alpha_map_folder(self, timestep: int) -> str:
-        # return f"{self.get_timestep_folder(timestep)}/alpha_map"
-        return f"{self.get_timestep_folder(timestep)}/alpha_map-73fps"  # TODO: Change
+        return f"{self.get_timestep_folder(timestep)}/alpha_map-73fps"
 
     def get_colmap_folder(self, timestep: int) -> str:
-        # return f"{self.get_timestep_folder(timestep)}/colmap"
-        return f"{self.get_timestep_folder(timestep)}/colmap-73fps"  # TODO: Change
+        return f"{self.get_timestep_folder(timestep)}/colmap-73fps"
 
     def get_depth_maps_folder(self, timestep: int, n_cameras: int = 12) -> str:
-        return f"{self.get_colmap_folder(timestep)}/depth_maps_geometric/{n_cameras}"
+        # return f"{self.get_colmap_folder(timestep)}/depth_maps_geometric/{n_cameras}"
+        return f"{self.get_colmap_folder(timestep)}/depth_maps_compressed/{n_cameras}"
 
-    def get_consistency_graphs_folder(self, timestep: int, n_cameras: int = 12) -> str:
-        return f"{self.get_colmap_folder(timestep)}/consistency_graphs/{n_cameras}"
+    # def get_consistency_graphs_folder(self, timestep: int, n_cameras: int = 12) -> str:
+    #     return f"{self.get_colmap_folder(timestep)}/consistency_graphs/{n_cameras}"
 
     def get_annotations_folder(self) -> str:
         return f"{self.get_participant_folder()}/annotations/{self._sequence_name}"
@@ -167,10 +165,10 @@ class NeRSembleDataManager:
     def get_depth_map_path(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> str:
         serial = self.cam_id_to_serial(cam_id_or_serial)
         return f"{self.get_depth_maps_folder(timestep)}/cam_{serial}.npz"
-
-    def get_consistency_graph_path(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> str:
-        serial = self.cam_id_to_serial(cam_id_or_serial)
-        return f"{self.get_consistency_graphs_folder(timestep)}/cam_{serial}.npz"
+    #
+    # def get_consistency_graph_path(self, timestep: int, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> str:
+    #     serial = self.cam_id_to_serial(cam_id_or_serial)
+    #     return f"{self.get_consistency_graphs_folder(timestep)}/cam_{serial}.npz"
 
     def get_color_correction_path(self, cam_id_or_serial: CAM_ID_SERIAL_TYPE) -> str:
         serial = self.cam_id_to_serial(cam_id_or_serial)
