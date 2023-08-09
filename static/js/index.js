@@ -87,7 +87,7 @@ $(document).ready(function() {
         loop: true,
         infinite: true,
         autoplay: true,
-        autoplaySpeed: 4000,
+        autoplaySpeed: 8000,
     });
 
     // Start playing next video in carousel and pause previous video to limit load on browser
