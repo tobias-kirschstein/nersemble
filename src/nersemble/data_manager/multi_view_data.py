@@ -137,9 +137,9 @@ class NeRSembleDataManager:
     def get_colmap_folder(self, timestep: int) -> str:
         return f"{self.get_timestep_folder(timestep)}/colmap-73fps"
 
-    def get_depth_maps_folder(self, timestep: int, n_cameras: int = 12) -> str:
+    def get_depth_maps_folder(self, timestep: int) -> str:
         # return f"{self.get_colmap_folder(timestep)}/depth_maps_geometric/{n_cameras}"
-        return f"{self.get_colmap_folder(timestep)}/depth_maps_compressed/{n_cameras}"
+        return f"{self.get_colmap_folder(timestep)}/depth_maps_compressed"
 
     # def get_consistency_graphs_folder(self, timestep: int, n_cameras: int = 12) -> str:
     #     return f"{self.get_colmap_folder(timestep)}/consistency_graphs/{n_cameras}"

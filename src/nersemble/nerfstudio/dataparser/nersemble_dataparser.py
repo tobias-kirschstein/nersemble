@@ -412,9 +412,7 @@ class NeRSembleDataParser(DataParser):
             # depth_map[consistency_graph < self.config.depth_min_consistency] = 0
 
             image = Image.fromarray(depth_map)
-            downsampled_size = (int(image.size[0] / self.config.downscale_factor),
-                                int(image.size[1] / self.config.downscale_factor))
-            image = image.resize(downsampled_size, resample=Image.NEAREST)
+            image = image.resize(self._image_size, resample=Image.NEAREST)
             depth_map = np.array(image)
 
             outlier_mask = (depth_map < 0.8) | (1.4 < depth_map)  # Points further away than 1.4m should be ignored
