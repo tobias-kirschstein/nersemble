@@ -62,28 +62,41 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
                             img: np.ndarray,
                             checkpoint: Union[str, int] = -1,
                             timestep: int = 0,
-                            name: Optional[str] = None):
-        evaluation_img_path = self.get_evaluation_img_path(cam_id, checkpoint, timestep, name=name)
+                            max_eval_timesteps: int = 15,
+                            skip_timesteps: Optional[int] = None,
+                            use_occupancy_grid_filtering: bool = True):
+        evaluation_img_path = self.get_evaluation_img_path(cam_id, checkpoint, timestep,
+                                                           max_eval_timesteps=max_eval_timesteps,
+                                                           skip_timesteps=skip_timesteps,
+                                                           use_occupancy_grid_filtering=use_occupancy_grid_filtering)
         save_img(img, evaluation_img_path)
 
     def get_evaluation_img_path(self,
                                 cam_id: int,
                                 checkpoint: Union[str, int] = -1,
                                 timestep: int = 0,
-                                name: Optional[str] = None) -> str:
-        return f"{self.get_evaluation_folder(checkpoint, name=name)}/frame_{timestep:05d}/cam_{cam_id}.png"
+                                max_eval_timesteps: int = 15,
+                                skip_timesteps: Optional[int] = None,
+                                use_occupancy_grid_filtering: bool = True) -> str:
+
+        return f"{self.get_evaluation_folder(checkpoint, max_eval_timesteps=max_eval_timesteps, skip_timesteps=skip_timesteps, use_occupancy_grid_filtering=use_occupancy_grid_filtering)}/frame_{timestep:05d}/cam_{cam_id}.png"
 
     def load_evaluation_img(self, cam_id: int,
                             checkpoint:
                             Union[str, int] = -1,
                             timestep: int = 0,
-                            name: Optional[str] = None,
                             use_alpha_map: bool = False,
-                            use_alpha_channel: bool = False) -> np.ndarray:
+                            use_alpha_channel: bool = False,
+                            max_eval_timesteps: int = 15,
+                            skip_timesteps: Optional[int] = None,
+                            use_occupancy_grid_filtering: bool = True) -> np.ndarray:
         if checkpoint == -1:
             checkpoint = self.list_evaluated_checkpoint_ids()[-1]
 
-        evaluation_img_path = self.get_evaluation_img_path(cam_id, checkpoint, timestep, name=name)
+        evaluation_img_path = self.get_evaluation_img_path(cam_id, checkpoint, timestep,
+                                                           max_eval_timesteps=max_eval_timesteps,
+                                                           skip_timesteps=skip_timesteps,
+                                                           use_occupancy_grid_filtering=use_occupancy_grid_filtering)
         img = load_img(evaluation_img_path)
 
         if use_alpha_map:
@@ -101,10 +114,16 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
 
         return img
 
-    def list_evaluated_timesteps(self, checkpoint: int = -1, name: Optional[str] = None) -> List[int]:
+    def list_evaluated_timesteps(self, checkpoint: int = -1,
+                                 max_eval_timesteps: int = 15,
+                                 skip_timesteps: Optional[int] = None,
+                                 use_occupancy_grid_filtering: bool = True) -> List[int]:
         timesteps = []
         folder_names = [path.name for path in
-                        Path(self.get_evaluation_folder(checkpoint=checkpoint, name=name)).iterdir() if
+                        Path(self.get_evaluation_folder(checkpoint=checkpoint, max_eval_timesteps=max_eval_timesteps,
+                                                        skip_timesteps=skip_timesteps,
+                                                        use_occupancy_grid_filtering=use_occupancy_grid_filtering)).iterdir()
+                        if
                         path.is_dir()]
         for folder_name in folder_names:
             if folder_name.startswith("frame_"):
@@ -117,32 +136,58 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
     def load_evaluation_images(self,
                                cam_id: Optional[int] = None,
                                timestep: Optional[int] = None,
-                               checkpoint: int = -1) -> List[np.ndarray]:
+                               checkpoint: int = -1,
+                               max_eval_timesteps: int = 15,
+                               skip_timesteps: Optional[int] = None,
+                               use_occupancy_grid_filtering: bool = True
+                               ) -> List[np.ndarray]:
         if cam_id is None:
             cam_ids = [0, 1, 2, 3]
         else:
             cam_ids = [cam_id]
 
         if timestep is None:
-            timesteps = self.list_evaluated_timesteps(checkpoint=checkpoint)
+            timesteps = self.list_evaluated_timesteps(checkpoint=checkpoint,
+                                                      max_eval_timesteps=max_eval_timesteps,
+                                                      skip_timesteps=skip_timesteps,
+                                                      use_occupancy_grid_filtering=use_occupancy_grid_filtering)
         else:
             timesteps = [timestep]
 
         images = []
         for timestep in timesteps:
             for cam_id in cam_ids:
-                img = self.load_evaluation_img(cam_id, timestep=timestep, checkpoint=checkpoint)
+                img = self.load_evaluation_img(cam_id,
+                                               timestep=timestep,
+                                               checkpoint=checkpoint,
+                                               max_eval_timesteps=max_eval_timesteps, skip_timesteps=skip_timesteps,
+                                               use_occupancy_grid_filtering=use_occupancy_grid_filtering)
                 images.append(img)
 
         return images
 
     def save_evaluation_result(self, evaluation_result: NVSEvaluationResult,
                                checkpoint: int = -1,
-                               name: Optional[str] = None):
-        save_json(evaluation_result.to_json(), self.get_evaluation_result_path(checkpoint, name=name))
+                               max_eval_timesteps: int = 15,
+                               skip_timesteps: Optional[int] = None,
+                               use_occupancy_grid_filtering: bool = True):
+        save_json(evaluation_result.to_json(),
+                  self.get_evaluation_result_path(
+                      checkpoint,
+                      max_eval_timesteps=max_eval_timesteps,
+                      skip_timesteps=skip_timesteps,
+                      use_occupancy_grid_filtering=use_occupancy_grid_filtering))
 
-    def load_evaluation_result(self, checkpoint: int = -1, name: Optional[str] = None) -> NVSEvaluationResult:
-        return NVSEvaluationResult.from_json(load_json(self.get_evaluation_result_path(checkpoint, name=name)))
+    def load_evaluation_result(self,
+                               checkpoint: int = -1,
+                               max_eval_timesteps: int = 15,
+                               skip_timesteps: Optional[int] = None,
+                               use_occupancy_grid_filtering: bool = True) -> NVSEvaluationResult:
+        return NVSEvaluationResult.from_json(load_json(
+            self.get_evaluation_result_path(checkpoint,
+                                            max_eval_timesteps=max_eval_timesteps,
+                                            skip_timesteps=skip_timesteps,
+                                            use_occupancy_grid_filtering=use_occupancy_grid_filtering)))
 
     def list_evaluated_checkpoint_ids(self) -> List[int]:
         evaluations_path = Path(self.get_evaluations_folder())
@@ -159,8 +204,13 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
 
         return evaluated_checkpoint_ids
 
-    def list_evaluations(self, checkpoint: int = -1) -> List[str]:
-        evaluation_file_paths = glob(f"{self.get_evaluation_folder(checkpoint)}/evaluation_result*.json")
+    def list_evaluations(self,
+                         checkpoint: int = -1,
+                         max_eval_timesteps: int = 15,
+                         skip_timesteps: Optional[int] = None,
+                         use_occupancy_grid_filtering: bool = True) -> List[str]:
+        evaluation_file_paths = glob(
+            f"{self.get_evaluation_folder(checkpoint, max_eval_timesteps=max_eval_timesteps, skip_timesteps=skip_timesteps, use_occupancy_grid_filtering=use_occupancy_grid_filtering)}/evaluation_result*.json")
         evaluations = []
         for evaluation_file_path in evaluation_file_paths:
             evaluation_file_name = Path(evaluation_file_path).stem
@@ -192,9 +242,28 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
     def get_evaluations_folder(self) -> str:
         return f"{self._location}/evaluation"
 
-    def get_evaluation_folder(self, checkpoint: Union[str, int] = -1, name: Optional[str] = None) -> str:
+    def get_evaluation_folder(self, checkpoint: Union[str, int] = -1,
+                              max_eval_timesteps: int = 15,
+                              skip_timesteps: Optional[int] = None,
+                              use_occupancy_grid_filtering: bool = True) -> str:
         if checkpoint == -1:
             checkpoint = list(sorted(self.list_evaluated_checkpoint_ids()))[-1]
+
+        name_parts = []
+
+        if max_eval_timesteps > 0:
+            name_parts.append(f"max_eval_timesteps_{max_eval_timesteps}")
+
+        if skip_timesteps is not None and skip_timesteps > 1:
+            name_parts.append(f"skip_timesteps_{skip_timesteps}")
+
+        if not use_occupancy_grid_filtering:
+            name_parts.append(f"no-occupancy-grid-filtering")
+
+        if name_parts:
+            name = '_'.join(name_parts)
+        else:
+            name = None
 
         checkpoint_folder_name = f"checkpoint_{checkpoint}"
         if name is not None:
@@ -204,8 +273,11 @@ class NeRSembleBaseModelManager(ModelManager[None, None, None, None, None, None,
 
     def get_evaluation_result_path(self,
                                    checkpoint: int = -1,
-                                   name: Optional[str] = None) -> str:
-        return f"{self.get_evaluation_folder(checkpoint, name=name)}/evaluation_result.json"
+                                   max_eval_timesteps: int = 15,
+                                   skip_timesteps: Optional[int] = None,
+                                   use_occupancy_grid_filtering: bool = True) -> str:
+
+        return f"{self.get_evaluation_folder(checkpoint, max_eval_timesteps=max_eval_timesteps, skip_timesteps=skip_timesteps, use_occupancy_grid_filtering=use_occupancy_grid_filtering)}/evaluation_result.json"
 
 
 class NeRSembleBaseModelFolder(ModelFolder[_ModelManagerType]):

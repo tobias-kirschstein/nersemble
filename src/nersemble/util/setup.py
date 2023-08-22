@@ -8,12 +8,12 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConf
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.eval_utils import eval_load_checkpoint
 
-from nersemble.env import NERSEMBLE_MODELS_PATH
 from nersemble.nerfstudio.config.nersemble_trainer_config import NeRSembleTrainerConfig
 
 
 def nersemble_eval_setup(
         config_path: Path,
+        checkpoint_folder: str,
         eval_num_rays_per_chunk: Optional[int] = None,
         test_mode: Literal["test", "val", "inference"] = "test",
         checkpoint: Optional[int] = None,
@@ -47,13 +47,10 @@ def nersemble_eval_setup(
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
 
-    # load checkpoints from wherever they were saved
-    checkpoint_dir = config.get_checkpoint_dir()
-
     # Nerfstudio stores the absolute path to the model checkpoint directory
     # This is wrong if the model files are moved somewhere else and NERSEMBLE_MODELS_PATH is updated accordingly
-    # Hence, we "relativize" the path here in a dirty way (correct way would be to store the relative path during training)
-    config.load_dir = Path(f"{NERSEMBLE_MODELS_PATH}/{checkpoint_dir.parts[-3]}/{checkpoint_dir.parts[-2]}/{checkpoint_dir.parts[-1]}")
+    # Hence, the path to the checkpoints has to be specified explicitly when loading models
+    config.load_dir = Path(checkpoint_folder)
 
     if isinstance(config.pipeline.datamanager, VanillaDataManagerConfig):
         config.pipeline.datamanager.eval_image_indices = None

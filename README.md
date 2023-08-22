@@ -45,9 +45,11 @@ NERSEMBLE_MODELS_PATH="..."
 NERSEMBLE_RENDERS_PATH="..."
 ```
 Replace the `...` with the locations where data / models / renderings should be located on your machine.
- - `NERSEMBLE_DATA_PATH`:  Location of the multi-view dataset (See [section 2](#2-dataset) for how to obtain the dataset)
+ - `NERSEMBLE_DATA_PATH`:  Location of the multi-view video dataset (See [section 2](#2-dataset) for how to obtain the dataset)
  - `NERSEMBLE_MODELS_PATH`: During training, model checkpoints and configs will be saved here
  - `NERSEMBLE_RENDERS_PATH`: Video renderings of trained models will be stored here
+
+If you do not like creating a config file in your home directory, you can instead hard-code the paths in the [env.py](src/nersemble/env.py).
 
 ### 1.3. Troubleshooting
 
@@ -88,7 +90,7 @@ Training takes roughly 1 day and requires at least an RTX A6000 GPU (48GB). GPU 
  - `--n_train_rays`: Number of rays per batch (default 4096). Lower values can affect convergence
  - `--mlp_num_layers` / `--mlp_layer_width`: Making the deformation field smaller should still provide reasonable performance.
 
-The training script will place model checkpoints and configuration in `${NERSEMBLE_MODELS_PATH}/NERS-XXX-${name}/`. The incremental run id `XXX` will be automatically determined.
+The training script will place model checkpoints and configuration in `${NERSEMBLE_MODELS_PATH}/nersemble/NERS-XXX-${name}/`. The incremental run id `XXX` will be automatically determined.
 
 #### Special config for sequences 97 and 124
 
@@ -124,6 +126,40 @@ From a trained model `NERS-XXX`, a circular trajectory (4s) may be rendered via:
 python scripts/render/render_nersemble.py NERS-XXX
 ```
 The resulting `.mp4` file is stored in `NERSEMBLE_RENDERS_PATH`.
+
+# 4. Trained Models
+
+We provide one trained NeRSemble for each of the 10 sequences used in the paper:
+
+| Participant ID | Sequence                  | Model                                                                            |
+|----------------|---------------------------|----------------------------------------------------------------------------------|
+| 18             | EMO-1-shout+laugh         | [NERS-9018](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 30             | EXP-2-eyes                | [NERS-9030](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 38             | EXP-1-head                | [NERS-9038](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 85             | SEN-01-port_strong_smokey | [NERS-9085](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 97             | HAIR                      | [NERS-9097](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+ | 124            | FREE                      | [NERS-9124](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 175            | EXP-6-tongue-1            | [NERS-9175](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 226            | EXP-3-cheeks+nose         | [NERS-9226](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 227            | EXP-5-mouth               | [NERS-9227](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+| 240            | EXP-4-lips                | [NERS-9240](https://nextcloud.tobias-kirschstein.de/index.php/s/gQoLTHjQkNNHN2j) |
+
+Simply put the downloaded model folders into `${NERSEMBLE_MODELS_PATH}/nersemble`.  
+You can then use the `evaluate_nersemble.py` and `render_nersemble.py` scripts to obtain renderings or reproduce the official metrics below. 
+
+# 5. Official metrics
+
+Metrics averaged over all 10 sequences from the NVS benchmark (same 10 sequences as in the paper):
+
+| Model     | PSNR  | SSIM  | LPIPS | JOD  |
+|-----------|-------|-------|-------|------|
+| NeRSemble | 31.48 | 0.872 | 0.217 | 7.85 |
+
+Note the following:
+ - The metrics are slightly different from the paper due to the newer version of nerfstudio used in this repository
+ - PSNR, SSIM and LPIPS are computed on only 15 evenly spaced timesteps (to make comparisons cheaper)
+ - JOD is computed on every 3rd timestep (using ` --skip_timesteps 3 --max_eval_timesteps -1`)
+ - Metrics for sequence 97 were computed with `--no_use_occupancy_grid_filtering`
 
 <hr>
 

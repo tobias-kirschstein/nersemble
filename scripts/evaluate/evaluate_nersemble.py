@@ -60,6 +60,7 @@ def main(run_name: str,
     # ----------------------------------------------------------
 
     _, pipeline, checkpoint_path, _ = nersemble_eval_setup(config_path,
+                                                           model_manager.get_checkpoint_folder(),
                                                            max_eval_timesteps=max_eval_timesteps,
                                                            eval_num_rays_per_chunk=n_rays_eval,
                                                            eval_num_images_to_sample_from=36)
@@ -145,7 +146,9 @@ def main(run_name: str,
 
             image = outputs[rgb_channel_name].cpu().numpy()
             model_manager.save_evaluation_img(cam_id, image, checkpoint=checkpoint, timestep=timestep,
-                                              name=name)
+                                              max_eval_timesteps=max_eval_timesteps,
+                                              skip_timesteps=skip_timesteps,
+                                              use_occupancy_grid_filtering=use_occupancy_grid_filtering)
 
             # Collect images for JOD metric
 
@@ -307,7 +310,11 @@ def main(run_name: str,
         per_cam=per_cam_metrics
     )
 
-    model_manager.save_evaluation_result(evaluation_result, checkpoint=checkpoint, name=name)
+    model_manager.save_evaluation_result(evaluation_result,
+                                         checkpoint=checkpoint,
+                                         max_eval_timesteps=max_eval_timesteps,
+                                         skip_timesteps=skip_timesteps,
+                                         use_occupancy_grid_filtering=use_occupancy_grid_filtering)
 
 
 if __name__ == '__main__':

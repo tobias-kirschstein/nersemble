@@ -21,7 +21,7 @@ def main(run_name: str,
          /,
          seconds: int = 4,
          fps: int = 24,
-         n_rays: int = 2**13,
+         n_rays: int = 2 ** 13,
          downscale_factor: int = 4,
          render_depth: bool = False,
          render_deformations: bool = False,
@@ -35,8 +35,9 @@ def main(run_name: str,
     config_path = Path(model_manager.get_config_path())
 
     _, pipeline, _, checkpoint = nersemble_eval_setup(config_path,
-                                                           eval_num_rays_per_chunk=n_rays,
-                                                           eval_num_images_to_sample_from=1)
+                                                      model_manager.get_checkpoint_folder(),
+                                                      eval_num_rays_per_chunk=n_rays,
+                                                      eval_num_images_to_sample_from=1)
 
     dataparser_config = pipeline.datamanager.dataparser.config
 
