@@ -83,14 +83,19 @@ python scripts/train/train_nersemble.py $ID $SEQUENCE_NAME --name $NAME
 where `$ID` is the id of the participant in the dataset (e.g., `030`) and `SEQUENCE_NAME` is the name of the expression / emotion / sentence (e.g., `EXP-2-eyes`).
 `$NAME` may optionally be used to annotate the checkpoint folder and the wandb experiment with some descriptive experiment name. 
 
-Training takes roughly 1 day and requires at least an RTX A6000 GPU (48GB). GPU memory requirements may be lowered by tweaking some of these hyperparameters:
+The training script will place model checkpoints and configuration in `${NERSEMBLE_MODELS_PATH}/nersemble/NERS-XXX-${name}/`. The incremental run id `XXX` will be automatically determined.
+
+#### GPU Requirements
+Training takes roughly 1 day and requires at least an RTX A6000 GPU (**48GB VRAM**). GPU memory requirements may be lowered by tweaking some of these hyperparameters:
  - `--max_n_samples_per_batch`: restricts How many ray samples are fed through the model at once (default 20 for 2^20 samples)
  - `--n_hash_encodings`: Number of hash encodings in the ensemble (default 32). Using 16 should give comparable quality (`--latent_dim_time` needs to be set to the same value)
  - `--cone_angle`: Use larger steps between ray samples for further away points. The default value of `0` (no step size increase) provides the best quality. Try values up to `0.004`
  - `--n_train_rays`: Number of rays per batch (default 4096). Lower values can affect convergence
  - `--mlp_num_layers` / `--mlp_layer_width`: Making the deformation field smaller should still provide reasonable performance.
 
-The training script will place model checkpoints and configuration in `${NERSEMBLE_MODELS_PATH}/nersemble/NERS-XXX-${name}/`. The incremental run id `XXX` will be automatically determined.
+#### RAM requirements
+Per default, the training script will cache loaded images in RAM which can cause RAM usage up to 200G. RAM usage can be lowered by:
+ - `--max_cached_images` (default 10k): Set to `0` to completely disable caching
 
 #### Special config for sequences 97 and 124
 
