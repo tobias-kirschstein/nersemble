@@ -57,6 +57,7 @@ def main(
         start_timestep: int = 0,
         n_timesteps: int = -1,
         skip_timesteps: int = 1,
+        max_cached_images: int = 10000,  # 10k should be ~200GB RAM
 
         # Learning rates
         lr_main: float = 5e-3,
@@ -162,7 +163,7 @@ def main(
                 train_num_times_to_repeat_images=20,
                 eval_num_images_to_sample_from=36,
                 use_cache_compression=False,
-                max_cached_items=10000,  # 10k should be roughly 200GB
+                max_cached_items=max_cached_images,  # 10k should be roughly 200GB
             ),
 
             model=NeRSembleNGPModelConfig(
