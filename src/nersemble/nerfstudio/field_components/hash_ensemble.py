@@ -80,9 +80,23 @@ class HashEnsemble(nn.Module):
         assert n_total_features <= 8 \
                or n_total_features % 8 == 0, \
             "Number of features in hashtables must either be smaller than 8 or a multiple of 8!"
+
+        # Here, we fuse hash grids together for a speed-up
+        # tinycudann allows a maximum of 8 features per level
+        # If we use 2 features per level (the default), this means we can have 4 hash grids fused into one by
+        # having a hash grid with 8 features per level and then unpacking the features after querying
+        n_hash_encodings = ceil(n_total_features / 8)
+        n_gpus = torch.cuda.device_count()
         self.hash_encodings = []
-        for i_hash_encoding in range(ceil(n_total_features / 8)):
-            self.hash_encodings.append(config.hash_encoding_config.setup(n_total_features))
+        for i_hash_encoding in range(n_hash_encodings):
+            hash_encoding = config.hash_encoding_config.setup(n_total_features)
+            if n_gpus >= 1:
+                # Distribute hash grids to different devices
+                gpu = int(i_hash_encoding / n_hash_encodings * n_gpus)
+                device = torch.device(type='cuda', index=gpu)
+                hash_encoding = hash_encoding.to(device)
+
+            self.hash_encodings.append(hash_encoding)
 
         self.hash_encodings = nn.ModuleList(self.hash_encodings)
 
@@ -99,8 +113,11 @@ class HashEnsemble(nn.Module):
         B = in_tensor.shape[0]
 
         embeddings = []
+        # Look up spatial features in all hash grids
         for h, hash_encoding in enumerate(self.hash_encodings):
+            in_tensor = in_tensor.to(hash_encoding.params.device)
             embedding = hash_encoding(in_tensor)
+            embedding = embedding.to(self.hash_encodings[0].params.device)
             embeddings.append(embedding)
 
         embeddings = torch.stack(embeddings, dim=1)  # [B, C, 8 * L]
